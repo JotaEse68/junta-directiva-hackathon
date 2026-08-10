@@ -3,7 +3,7 @@ import { createContext, useContext, useState, createElement } from 'react'
 const DICT = {
   en: {
     'board.title': 'Your Board of Directors',
-    'board.subtitle': '12 specialized directors debate your situation with each other — they listen, they push back — and issue an executive verdict with next steps.',
+    'board.subtitle': '12 specialized directors dig into your situation together — pushing each other, laying out the real options — so you leave with a clear recommendation and next steps, not just an opinion.',
     'meeting.strategic': 'Strategic decision',
     'meeting.problem': 'Problem to solve',
     'meeting.opportunity': 'Opportunity to evaluate',
@@ -39,7 +39,7 @@ const DICT = {
   },
   es: {
     'board.title': 'Tu Junta Directiva',
-    'board.subtitle': '12 directores especializados debaten tu situación entre sí — se escuchan, se rebaten — y emiten un veredicto ejecutivo con próximos pasos.',
+    'board.subtitle': '12 directores especializados analizan tu situación en profundidad — se rebaten, ponen sobre la mesa las opciones reales — para que salgas con una recomendación clara y próximos pasos, no solo una opinión.',
     'meeting.strategic': 'Decisión estratégica',
     'meeting.problem': 'Problema a resolver',
     'meeting.opportunity': 'Oportunidad a evaluar',
@@ -89,7 +89,7 @@ export const DIRECTOR_I18N = {
     financiero: {
       tags: ['Real numbers', 'ROI', 'Cash flow', 'Financial risk'],
       personality: "Blunt with the numbers. Has no interest in pretty ideas that don't add up in Excel.",
-      contribution: 'Translates every decision into real numbers: cash flow, ROI, break-even point. Flags the financial risk nobody is seeing and votes with concrete conditions.',
+      contribution: 'Translates every decision into real numbers: cash flow, ROI, break-even point. Flags the financial risk nobody is seeing and recommends with concrete figures.',
     },
     marketing: {
       tags: ['Brand', 'Audience', 'Positioning', 'Growth'],

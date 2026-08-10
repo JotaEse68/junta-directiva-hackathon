@@ -41,14 +41,19 @@ def test_build_chairman_agent_returns_agent():
     assert "Roberto Alcántara" in agent.description
 
 
-def test_build_chairman_agent_uses_verdict_prompt_not_director_bio():
-    # Regression guard: build_chairman_agent() must use the verdict-synthesis
-    # prompt from frontend/src/hooks/useBoard.js's callVerdict (verdictSystem),
-    # not the 'mentor' director's bio system_prompt from directors.js. A prior
-    # version wrongly routed through build_director_agent() on the mentor
-    # persona.
+def test_build_chairman_agent_uses_synthesis_prompt_not_director_bio():
+    # Regression guard: build_chairman_agent() must use the dedicated
+    # debate-synthesis prompt (CHAIRMAN_SYSTEM_PROMPT in chairman.py), not the
+    # 'mentor' director's bio system_prompt from directors.js. A prior version
+    # wrongly routed through build_director_agent() on the mentor persona.
+    #
+    # Task 14 (product-quality upgrade) reframed the synthesis's step 3 from a
+    # courtroom "VEREDICTO FINAL: proceder / no proceder" into "EL CAMINO A
+    # SEGUIR" — presenting the real path(s) the board converged on and
+    # Roberto's call on which to take, as guidance rather than a ruling. The
+    # "3 PRÓXIMOS PASOS" close was kept unchanged.
     agent = build_chairman_agent()
-    assert "VEREDICTO FINAL" in agent.instruction
+    assert "EL CAMINO A SEGUIR" in agent.instruction
     assert "PRÓXIMOS PASOS" in agent.instruction
     # Make sure it's NOT the director-bio prompt (which never mentions these)
     assert "35 años de experiencia" not in agent.instruction
