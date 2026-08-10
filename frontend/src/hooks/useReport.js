@@ -4,11 +4,11 @@ import { streamCompletion } from '../lib/aiClient.js'
 
 // Opinión exprés (2-3 frases) de un director que no participó en el debate en vivo —
 // para que ningún miembro de la junta de 12 quede sin decir nada en el informe completo.
-async function quickTake({ director, situation, apiKey, provider }) {
+async function quickTake({ director, situation, apiKey }) {
   const userMsg = `SITUACIÓN: ${situation}
 
 Como ${director.name} (${director.title}), da tu opinión exprés en 2-3 frases desde tu especialidad. No es un análisis largo — solo tu primera reacción experta y directa, sin rodeos.`
-  return streamCompletion({ provider, apiKey, system: director.systemPrompt, userMsg, maxTokens: 180 })
+  return streamCompletion({ apiKey, system: director.systemPrompt, userMsg, maxTokens: 180 })
 }
 
 const REPORT_SYSTEM = `Eres el equipo editorial de Junta Directiva AI. A partir de un debate ya completado, produces el INFORME COMPLETO — un documento notablemente más profundo y útil que el veredicto gratuito ya entregado al usuario. No repitas el veredicto, amplíalo.
@@ -34,7 +34,7 @@ export function useReport() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const generateReport = useCallback(async ({ situation, meetingType, activeDirectors, directorStates, verdict, apiKey, provider }) => {
+  const generateReport = useCallback(async ({ situation, meetingType, activeDirectors, directorStates, verdict, apiKey }) => {
     setLoading(true)
     setError(null)
     setReport(null)
@@ -44,7 +44,7 @@ export function useReport() {
 
       const quickResults = await Promise.all(missingDirectors.map(async (director) => {
         try {
-          const text = await quickTake({ director, situation, apiKey, provider })
+          const text = await quickTake({ director, situation, apiKey })
           return { director, text }
         } catch {
           return { director, text: null }
@@ -73,7 +73,7 @@ ${quickSummary || '(todos los directores participaron en vivo)'}
 
 Produce el informe completo siguiendo exactamente la estructura indicada.`
 
-      const text = await streamCompletion({ provider, apiKey, system: REPORT_SYSTEM, userMsg: reportPrompt, maxTokens: 1500 })
+      const text = await streamCompletion({ apiKey, system: REPORT_SYSTEM, userMsg: reportPrompt, maxTokens: 1500 })
       setReport({ text, quickTakes })
     } catch (err) {
       setError(err.message || 'No se pudo generar el informe completo')

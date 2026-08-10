@@ -15,7 +15,7 @@ function buildDebateRecap(debateSoFar) {
   return `\n\nDEBATE HASTA AHORA (tus colegas ya hablaron, en este orden):\n${turns}\n\nAntes de dar tu propio análisis, reacciona en 1-2 frases a lo que han dicho tus colegas — cita a quien corresponda por nombre, coincide o discrepa explícitamente. Luego da tu aportación completa desde tu especialidad.`
 }
 
-async function callDirector({ director, situation, meetingType, contextBlock, debateSoFar, apiKey, provider, onChunk }) {
+async function callDirector({ director, situation, meetingType, contextBlock, debateSoFar, apiKey, onChunk }) {
   const meetingLabel = MEETING_TYPES.find(m => m.id === meetingType)?.label || 'Reunión'
   const framing = MEETING_FRAMING[meetingType] || ''
 
@@ -29,11 +29,11 @@ ${situation}${contextSection}${debateSection}
 
 Como ${director.name} (${director.title}), da tu análisis experto y posición. Si el contexto adicional es relevante para tu especialidad, incorpóralo en tu análisis. Nunca te niegues a opinar alegando que no puedes acceder a una URL o navegar por internet — todo el contexto relevante ya está resuelto y resumido arriba; si algo no está cubierto ahí, trabaja igual con lo que sí tienes.`
 
-  return streamCompletion({ provider, apiKey, system: director.systemPrompt, userMsg, maxTokens: 800, onChunk })
+  return streamCompletion({ apiKey, system: director.systemPrompt, userMsg, maxTokens: 800, onChunk })
 }
 
 // Llama al Chairman para el veredicto final basado en todos los análisis
-async function callVerdict({ situation, meetingType, responses, apiKey, provider }) {
+async function callVerdict({ situation, meetingType, responses, apiKey }) {
   const summaries = responses
     .map(r => `${r.director.name} (${r.director.title}):\n${r.text}`)
     .join('\n\n---\n\n')
@@ -56,7 +56,7 @@ ${summaries}
 
 Sintetiza el debate y emite el veredicto final de la junta.`
 
-  return streamCompletion({ provider, apiKey, system: verdictSystem, userMsg: verdictMsg, maxTokens: 600 })
+  return streamCompletion({ apiKey, system: verdictSystem, userMsg: verdictMsg, maxTokens: 600 })
 }
 
 export function useBoard() {
@@ -93,7 +93,7 @@ export function useBoard() {
   }, [])
 
   // `directors` viene ya resuelto y ordenado desde fuera (selección automática + overrides del usuario)
-  const conveneBoard = useCallback(async ({ directors, situation, meetingType, contextBlock, apiKey, provider }) => {
+  const conveneBoard = useCallback(async ({ directors, situation, meetingType, contextBlock, apiKey }) => {
     const selected = directors
     setActiveDirectors(selected)
     setDirectorStates({})
@@ -124,7 +124,6 @@ export function useBoard() {
           contextBlock: contextBlock || '',
           debateSoFar,
           apiKey: apiKey || null,
-          provider: provider || 'claude',
           onChunk: (partial) => {
             setDirectorStates(prev => ({
               ...prev,
@@ -159,7 +158,6 @@ export function useBoard() {
         meetingType,
         responses: successful,
         apiKey: apiKey || null,
-        provider: provider || 'claude',
       })
       setVerdict(verdictText)
     } catch (err) {

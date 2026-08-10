@@ -27,7 +27,7 @@ export function useChairmanChat() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
 
-  const sendMessage = useCallback(async (text, sessionContext, { apiKey, provider }) => {
+  const sendMessage = useCallback(async (text, sessionContext, { apiKey }) => {
     const question = text.trim()
     if (!question) return
 
@@ -43,7 +43,7 @@ export function useChairmanChat() {
         : `Usuario: ${question}\n\nResponde como Roberto.`
 
       const reply = await streamCompletion({
-        provider, apiKey, system, userMsg, maxTokens: 500,
+        apiKey, system, userMsg, maxTokens: 500,
         onChunk: (partial) => {
           setMessages(prev => {
             const next = prev.slice()
