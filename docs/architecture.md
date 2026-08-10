@@ -6,8 +6,9 @@ chat-loop reskin: the browser gets a `session_id` back immediately, and the
 the tab stays open. For this board-convening flow, the frontend never talks
 to the LLMs directly — it only creates a session and then watches Firestore.
 (Two other, non-judged UI features — the post-verdict report and the
-chairman follow-up chat — do call an LLM endpoint client-side today, but
-that endpoint doesn't exist in this backend; see "Known gaps" below.)
+chairman follow-up chat — depended on an LLM endpoint that doesn't exist in
+this backend, and have been removed from this build's UI; see "Known gaps"
+below.)
 
 ## Sequence
 
@@ -48,7 +49,7 @@ sequenceDiagram
   a Firestore `onSnapshot` subscription on the session document and renders
   whatever turns/verdict/status are in it. For the board-convening flow it
   never polls the backend and never calls Gemini or Vertex AI directly
-  (see "Known gaps" below for the two features that still do).
+  (see "Known gaps" below for the two features that used to).
 - **Backend** — FastAPI on Cloud Run (`backend/main.py`). `POST /sessions`
   creates the Firestore doc and hands the whole debate off to FastAPI's
   `BackgroundTasks` (`backend/orchestrator.py::run_board_session`), then
@@ -88,14 +89,13 @@ sequenceDiagram
 
 ## Known gaps
 
-Two still-mounted UI features are outside the board-convening flow described
-above and are currently non-functional: the post-verdict "informe completo"
-report (`ReportModal`/`DownloadBanner`) and the chairman follow-up chat
-(`ChairmanChat`). Both call `streamCompletion()` in
-`frontend/src/lib/aiClient.js`, which does a client-side `fetch('/api/coach',
-...)` — an endpoint that does not exist in this backend (only `/health`,
-`/sessions`, `/sessions/{id}`). This is a pre-existing gap, not part of the
-compliant async architecture judged for the hackathon.
+Two UI features outside the board-convening flow described above — the
+post-verdict "informe completo" report (`ReportModal`/`DownloadBanner`) and
+the chairman follow-up chat (`ChairmanChat`) — depended on a client-side
+`fetch('/api/coach', ...)` endpoint that does not exist in this backend
+(only `/health`, `/sessions`, `/sessions/{id}`), so they have been removed
+from the rendered UI for this competition build rather than shipped broken;
+the component/hook files remain in the tree for the underlying product.
 
 ## What the competition build deliberately does not have
 

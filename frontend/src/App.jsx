@@ -3,12 +3,7 @@ import DebateChat from './components/DebateChat.jsx'
 import DirectorModal from './components/DirectorModal.jsx'
 import DirectorsRoster from './components/DirectorsRoster.jsx'
 import VerdictPanel from './components/VerdictPanel.jsx'
-import DownloadBanner from './components/DownloadBanner.jsx'
-import ReportModal from './components/ReportModal.jsx'
-import ChairmanChat from './components/ChairmanChat.jsx'
 import { useBoard } from './hooks/useBoard.js'
-import { useReport } from './hooks/useReport.js'
-import { useChairmanChat } from './hooks/useChairmanChat.js'
 import { DIRECTORS, MEETING_TYPES } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n } from './lib/i18n.js'
@@ -49,9 +44,6 @@ function AppInner() {
   // inicial de nuevo tras "Nueva sesión" como para el estado idle antes del primer convene.
   const { turns, verdict, status, convene } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
-  const { report, loading: reportLoading, error: reportError, generateReport, reset: resetReport } = useReport()
-  const [showReport, setShowReport] = useState(false)
-  const { messages: chatMessages, sending: chatSending, error: chatError, sendMessage: sendChatMessage, reset: resetChat } = useChairmanChat()
 
   // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
   // se deriva de `turns` en vez de tocar esa función, ya que solo se le pasan directores
@@ -61,15 +53,6 @@ function AppInner() {
     [turns]
   )
   const consensus = useMemo(() => computeConsensus(directorStates), [directorStates])
-
-  const handleGenerateReport = () => {
-    setShowReport(true)
-    generateReport({ situation, meetingType, turns, verdict, apiKey: null })
-  }
-
-  const handleSendChat = (text) => {
-    sendChatMessage(text, { situation, turns, verdict }, { apiKey: null })
-  }
 
   const handleMeetingTypeChange = (id) => {
     setMeetingType(id)
@@ -90,9 +73,6 @@ function AppInner() {
 
   const handleReset = () => {
     setHasStarted(false)
-    resetReport()
-    resetChat()
-    setShowReport(false)
     setSituation('')
   }
 
@@ -286,27 +266,6 @@ function AppInner() {
               </div>
             )}
 
-            {/* Banner informe completo — aparece cuando hay veredicto */}
-            {isDone && verdict && (
-              <div style={{ marginBottom: '28px' }}>
-                <DownloadBanner
-                  sessionData={{ directorCount: turns.length }}
-                  loading={reportLoading}
-                  onGenerate={handleGenerateReport}
-                />
-              </div>
-            )}
-
-            {/* Chat de seguimiento con el Chairman — después del veredicto */}
-            {isDone && verdict && (
-              <ChairmanChat
-                messages={chatMessages}
-                sending={chatSending}
-                error={chatError}
-                onSend={handleSendChat}
-              />
-            )}
-
             {isDone && (
               <div style={{ textAlign: 'center', marginTop: '48px' }}>
                 <button onClick={handleReset} style={{ padding: '13px 32px', borderRadius: 'var(--r-md)', border: '1px solid var(--blue-bd)', background: 'var(--blue-dim)', color: 'var(--blue)', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
@@ -325,16 +284,6 @@ function AppInner() {
       </main>
 
       {/* Modals */}
-      {showReport && (
-        <ReportModal
-          situation={situation}
-          verdict={verdict}
-          report={report}
-          loading={reportLoading}
-          error={reportError}
-          onClose={() => setShowReport(false)}
-        />
-      )}
       {selectedDirector && (
         <DirectorModal
           director={selectedDirector}
