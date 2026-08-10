@@ -68,8 +68,8 @@ function AppInner() {
   const handleConvene = useCallback(async () => {
     if (!situation.trim() || !isIdle) return
     setHasStarted(true)
-    await convene(situation.trim(), meetingType)
-  }, [situation, meetingType, isIdle, convene])
+    await convene(situation.trim(), meetingType, lang)
+  }, [situation, meetingType, isIdle, convene, lang])
 
   const handleReset = () => {
     setHasStarted(false)
@@ -81,7 +81,7 @@ function AppInner() {
     const state = directorStates[dirId]
     if (!state?.text) return null
     const lines = state.text.split('\n').filter(l => l.trim())
-    const keywords = ['voto:', 'posición:', 'evaluación:', 'veredicto:']
+    const keywords = ['voto:', 'posición:', 'evaluación:', 'veredicto:', 'vote:', 'position:', 'assessment:', 'verdict:']
     for (const line of lines.slice(-5)) {
       if (keywords.some(k => line.toLowerCase().includes(k))) return line.trim()
     }

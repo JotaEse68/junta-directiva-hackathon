@@ -68,17 +68,28 @@ def call_agent(agent, prompt: str) -> str:
     return final_text
 
 
-def run_board_session(session_id: str, situation: str, meeting_type: str) -> None:
+LANGUAGE_DIRECTIVE = "\n\nIMPORTANT: Write your entire response in English, regardless of the language of the instructions above."
+
+
+def run_board_session(
+    session_id: str, situation: str, meeting_type: str, language: str = "es"
+) -> None:
     set_status(session_id, "running")
+    director_prompt = situation
+    if language == "en":
+        director_prompt = situation + LANGUAGE_DIRECTIVE
+
     responses = []
     for director in DIRECTORS:
         agent = build_director_agent(director)
-        text = call_agent(agent, situation)
+        text = call_agent(agent, director_prompt)
         append_turn(session_id, director["id"], text)
         responses.append((director, text))
 
     chairman = build_chairman_agent()
     summary_prompt = "\n\n".join(f"{d['name']}: {t}" for d, t in responses)
+    if language == "en":
+        summary_prompt = summary_prompt + LANGUAGE_DIRECTIVE
     verdict = call_agent(chairman, summary_prompt)
     set_verdict(session_id, verdict)
     set_status(session_id, "done")

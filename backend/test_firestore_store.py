@@ -9,6 +9,14 @@ def test_create_and_get_session():
     assert doc["status"] == "running"
     assert doc["turns"] == []
 
+def test_create_session_language_defaults_to_es():
+    sid = create_session("test", "strategic")
+    assert get_session(sid)["language"] == "es"
+
+def test_create_session_language_persists_en():
+    sid = create_session("test", "strategic", language="en")
+    assert get_session(sid)["language"] == "en"
+
 def test_append_turn_accumulates():
     sid = create_session("test", "strategic")
     append_turn(sid, "elena-voss", "Mi análisis...")

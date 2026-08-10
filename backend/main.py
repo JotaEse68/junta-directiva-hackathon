@@ -27,12 +27,15 @@ def health():
 class SessionRequest(BaseModel):
     situation: str
     meeting_type: str
+    language: str = "es"
 
 
 @app.post("/sessions")
 def create_session_endpoint(req: SessionRequest, background_tasks: BackgroundTasks):
-    session_id = create_session(req.situation, req.meeting_type)
-    background_tasks.add_task(run_board_session, session_id, req.situation, req.meeting_type)
+    session_id = create_session(req.situation, req.meeting_type, req.language)
+    background_tasks.add_task(
+        run_board_session, session_id, req.situation, req.meeting_type, req.language
+    )
     return {"session_id": session_id}
 
 

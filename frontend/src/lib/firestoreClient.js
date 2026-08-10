@@ -10,11 +10,11 @@ const db = getFirestore(app)
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
-export async function createSession(situation, meetingType) {
+export async function createSession(situation, meetingType, language) {
   const res = await fetch(`${BACKEND_URL}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ situation, meeting_type: meetingType }),
+    body: JSON.stringify({ situation, meeting_type: meetingType, language }),
   })
   const { session_id } = await res.json()
   return session_id
