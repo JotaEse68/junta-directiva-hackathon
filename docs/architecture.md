@@ -3,8 +3,11 @@
 **Junta Directiva AI** runs the board debate as a genuine background job, not a
 chat-loop reskin: the browser gets a `session_id` back immediately, and the
 12-director-plus-chairman sequence keeps running server-side whether or not
-the tab stays open. The frontend never talks to the LLMs directly — it only
-creates a session and then watches Firestore.
+the tab stays open. For this board-convening flow, the frontend never talks
+to the LLMs directly — it only creates a session and then watches Firestore.
+(Two other, non-judged UI features — the post-verdict report and the
+chairman follow-up chat — do call an LLM endpoint client-side today, but
+that endpoint doesn't exist in this backend; see "Known gaps" below.)
 
 ## Sequence
 
@@ -43,8 +46,9 @@ sequenceDiagram
 - **Frontend** — React 18 + Vite, deployed to Firebase Hosting. Calls
   `POST /sessions` once via `frontend/src/lib/firestoreClient.js`, then opens
   a Firestore `onSnapshot` subscription on the session document and renders
-  whatever turns/verdict/status are in it. It never polls the backend and
-  never calls Gemini or Vertex AI directly.
+  whatever turns/verdict/status are in it. For the board-convening flow it
+  never polls the backend and never calls Gemini or Vertex AI directly
+  (see "Known gaps" below for the two features that still do).
 - **Backend** — FastAPI on Cloud Run (`backend/main.py`). `POST /sessions`
   creates the Firestore doc and hands the whole debate off to FastAPI's
   `BackgroundTasks` (`backend/orchestrator.py::run_board_session`), then
@@ -81,6 +85,17 @@ sequenceDiagram
   happen with the Cloud Run service account's credentials
   (`GOOGLE_APPLICATION_CREDENTIALS` / Application Default Credentials) — no
   API key is ever sent to or held by the browser.
+
+## Known gaps
+
+Two still-mounted UI features are outside the board-convening flow described
+above and are currently non-functional: the post-verdict "informe completo"
+report (`ReportModal`/`DownloadBanner`) and the chairman follow-up chat
+(`ChairmanChat`). Both call `streamCompletion()` in
+`frontend/src/lib/aiClient.js`, which does a client-side `fetch('/api/coach',
+...)` — an endpoint that does not exist in this backend (only `/health`,
+`/sessions`, `/sessions/{id}`). This is a pre-existing gap, not part of the
+compliant async architecture judged for the hackathon.
 
 ## What the competition build deliberately does not have
 

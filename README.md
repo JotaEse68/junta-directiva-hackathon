@@ -6,7 +6,9 @@ You describe a business situation and pick a meeting type; 12 specialized direct
 
 ## Why this counts as "beyond the standard chat loop"
 
-`POST /sessions` returns a `session_id` immediately. The 12-director-plus-chairman debate then runs as a FastAPI `BackgroundTasks` job on the server, independent of whether the browser tab stays open, writing each turn to Firestore as it completes. The frontend never calls Gemini directly — it subscribes to the Firestore session document (`onSnapshot`) and renders turns and the verdict as they land. See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram.
+`POST /sessions` returns a `session_id` immediately. The 12-director-plus-chairman debate then runs as a FastAPI `BackgroundTasks` job on the server, independent of whether the browser tab stays open, writing each turn to Firestore as it completes. For this board-convening/debate flow — the flow that satisfies the hackathon's async/GCP requirements — the frontend never calls Gemini directly: it only subscribes to the Firestore session document (`onSnapshot`) and renders turns and the verdict as they land. See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram.
+
+**Known gap:** two other still-mounted UI features — the post-verdict "informe completo" report (`ReportModal`/`DownloadBanner`) and the chairman follow-up chat (`ChairmanChat`) — call `streamCompletion()` in `frontend/src/lib/aiClient.js`, which does a client-side `fetch('/api/coach', ...)`. That endpoint does not exist in this competition build's backend (only `/health`, `/sessions`, `/sessions/{id}`), so these two features currently fail at runtime. They are not part of the compliant async architecture above and are flagged here as a known, pre-existing gap rather than something the judged flow depends on.
 
 ## Stack
 
@@ -78,7 +80,7 @@ Then:
 npm run dev
 ```
 
-The frontend only ever needs these three environment variables — there is no client-side Gemini/AI API key of any kind in this build; all model calls happen from the backend.
+The frontend only ever needs these three environment variables — there is no client-side Gemini/AI API key for the board-convening flow; all model calls in that flow happen from the backend. (The "informe completo" and chairman-chat features referenced above still call a nonexistent `/api/coach` endpoint and are non-functional in this build; see the known gap noted earlier.)
 
 ## Architecture
 
