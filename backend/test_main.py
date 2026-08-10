@@ -1,3 +1,7 @@
+import os
+
+os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8081"
+
 from fastapi.testclient import TestClient
 from main import app
 
