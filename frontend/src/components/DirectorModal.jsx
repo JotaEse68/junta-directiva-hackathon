@@ -1,12 +1,18 @@
 import React from 'react'
+import { useI18n, DIRECTOR_I18N } from '../lib/i18n.js'
 
 export default function DirectorModal({ director, sessionVote, onClose }) {
+  const { lang, t } = useI18n()
   if (!director) return null
 
   const isJottarina = director.id === 'jottarina'
   const accent = isJottarina ? 'var(--red)' : 'var(--blue)'
   const accentDim = isJottarina ? 'var(--red-dim)' : 'var(--blue-dim)'
   const accentBd = isJottarina ? 'var(--red-bd)' : 'var(--blue-bd)'
+  const bio = DIRECTOR_I18N[lang]?.[director.id]
+  const tags = bio?.tags ?? director.tags
+  const personality = bio?.personality ?? director.personality
+  const contribution = bio?.contribution ?? director.contribution
 
   return (
     <div
@@ -49,7 +55,7 @@ export default function DirectorModal({ director, sessionVote, onClose }) {
 
         {/* Tags */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>
-          {director.tags.map(tag => (
+          {tags.map(tag => (
             <span key={tag} style={{
               fontSize: '11px', padding: '3px 10px', borderRadius: '4px',
               background: accentDim, color: accent,
@@ -60,16 +66,16 @@ export default function DirectorModal({ director, sessionVote, onClose }) {
 
         <div style={{ borderTop: '1px solid var(--bd)', borderBottom: '1px solid var(--bd)', padding: '16px 0', marginBottom: '18px' }}>
           <p style={{ fontSize: '13px', color: 'var(--t2)', textAlign: 'center', fontStyle: 'italic', lineHeight: 1.6 }}>
-            "{director.personality}"
+            "{personality}"
           </p>
         </div>
 
         {/* Qué aporta */}
         <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 500 }}>
-          Qué aporta en cada sesión
+          {t('modal.contributionLabel')}
         </p>
         <p style={{ fontSize: '13px', color: 'var(--t2)', lineHeight: 1.65, marginBottom: '18px' }}>
-          {director.contribution}
+          {contribution}
         </p>
 
         {/* Veredicto en esta sesión si existe */}
@@ -80,7 +86,7 @@ export default function DirectorModal({ director, sessionVote, onClose }) {
             marginBottom: '18px',
           }}>
             <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '4px' }}>
-              Posición en esta sesión
+              {t('modal.sessionPositionLabel')}
             </p>
             <p style={{ fontSize: '13px', color: accent, fontWeight: 600 }}>{sessionVote}</p>
           </div>
@@ -96,7 +102,7 @@ export default function DirectorModal({ director, sessionVote, onClose }) {
             color: 'var(--t2)', fontSize: '13px',
           }}
         >
-          Cerrar
+          {t('modal.close')}
         </button>
       </div>
     </div>

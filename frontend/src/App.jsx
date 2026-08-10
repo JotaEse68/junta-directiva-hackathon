@@ -6,7 +6,7 @@ import VerdictPanel from './components/VerdictPanel.jsx'
 import { useBoard } from './hooks/useBoard.js'
 import { DIRECTORS, MEETING_TYPES } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
-import { I18nProvider, useI18n } from './lib/i18n.js'
+import { I18nProvider, useI18n, MEETING_DESC_I18N } from './lib/i18n.js'
 
 const MAX_CHARS = 800
 
@@ -107,7 +107,7 @@ function AppInner() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isRunning && (
             <span style={{ fontSize: '12px', color: 'var(--blue)', padding: '4px 12px', borderRadius: '20px', background: 'var(--blue-dim)', border: '1px solid var(--blue-bd)' }}>
-              {status === 'starting' ? 'Convocando...' : `Debate · ${doneCount}/${totalCount}`}
+              {status === 'starting' ? t('nav.starting') : `${t('nav.debate')} · ${doneCount}/${totalCount}`}
             </span>
           )}
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
@@ -137,7 +137,7 @@ function AppInner() {
             {/* Hero */}
             <div className="fade-up" style={{ textAlign: 'center', marginBottom: '52px' }}>
               <p style={{ fontSize: '11px', color: 'var(--blue)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 500 }}>
-                Tu junta directiva · 12 expertos
+                {t('hero.kicker')}
               </p>
               <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(34px, 5vw, 58px)', fontWeight: 400, lineHeight: 1.1, marginBottom: '18px', color: 'var(--t1)' }}>
                 {t('board.title')}
@@ -151,7 +151,7 @@ function AppInner() {
                 del backend corre la lista completa en orden fijo, no hay selección). */}
             <div className="fade-up" style={{ marginBottom: '48px', animationDelay: '.08s' }}>
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '14px', textAlign: 'center', fontWeight: 500 }}>
-                Tu junta · {DIRECTORS.length} directores
+                {t('board.yourBoard')} · {DIRECTORS.length} {t('board.directorsCount')}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                 {DIRECTORS.map(d => {
@@ -163,7 +163,7 @@ function AppInner() {
                     <button
                       key={d.id}
                       onClick={() => setSelectedDirector(d)}
-                      title={`Ver perfil de ${d.name}`}
+                      title={t('roster.viewProfile').replace('{name}', d.name)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '7px',
                         padding: '7px 14px', borderRadius: '24px',
@@ -182,32 +182,32 @@ function AppInner() {
                 })}
               </div>
               <p style={{ fontSize: '11px', color: 'var(--t3)', textAlign: 'center', marginTop: '10px' }}>
-                El debate es secuencial (cada director escucha a los anteriores) — puede tardar varios minutos.
+                {t('board.sequentialNote')}
               </p>
             </div>
 
             {/* Formulario */}
             <div className="fade-up" style={{ animationDelay: '.14s', background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 'var(--r-xl)', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
-                <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 500 }}>Tipo de reunión</p>
+                <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 500 }}>{t('form.meetingType')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                   {MEETING_TYPES.map(mt => (
                     <button key={mt.id} onClick={() => handleMeetingTypeChange(mt.id)}
                       style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', textAlign: 'left', border: `1px solid ${meetingType === mt.id ? 'var(--blue-bd)' : 'var(--bd)'}`, background: meetingType === mt.id ? 'var(--blue-dim)' : 'var(--bg3)', transition: 'all .2s' }}>
                       <div style={{ fontSize: '16px', marginBottom: '4px' }}>{mt.icon}</div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: meetingType === mt.id ? 'var(--blue)' : 'var(--t1)', marginBottom: '2px' }}>{MEETING_TYPE_KEYS[mt.id] ? t(MEETING_TYPE_KEYS[mt.id]) : mt.label}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--t3)' }}>{mt.desc}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--t3)' }}>{MEETING_DESC_I18N[lang]?.[mt.id] ?? mt.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 500 }}>Situación a debatir</p>
+                <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 500 }}>{t('form.situationLabel')}</p>
                 <textarea
                   value={situation}
                   onChange={e => setSituation(e.target.value.slice(0, MAX_CHARS))}
-                  placeholder="Describe la situación con contexto. Cuánto más específico seas, más útil será el análisis. Incluye datos relevantes: mercado, recursos, restricciones, plazos..."
+                  placeholder={t('form.situationPlaceholder')}
                   rows={5}
                   style={{ width: '100%', padding: '16px', background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 'var(--r-md)', color: 'var(--t1)', fontSize: '15px', lineHeight: 1.7, resize: 'vertical', outline: 'none', transition: 'border-color .2s', minHeight: '130px' }}
                   onFocus={e => e.target.style.borderColor = 'var(--blue-bd)'}
@@ -215,7 +215,7 @@ function AppInner() {
                   onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleConvene() }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--t3)' }}>⌘+Enter para convocar</span>
+                  <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{t('form.cmdEnterHint')}</span>
                   <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{situation.length}/{MAX_CHARS}</span>
                 </div>
               </div>
@@ -238,7 +238,7 @@ function AppInner() {
             <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: '11px', color: 'var(--blue)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 500 }}>
-                  {status === 'starting' ? 'Convocando junta...' : isDone ? 'Sesión completada' : `Debate en curso · ${doneCount}/${totalCount}`}
+                  {status === 'starting' ? t('status.starting') : isDone ? t('status.done') : `${t('status.running')} · ${doneCount}/${totalCount}`}
                 </p>
                 <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 400, color: 'var(--t1)', lineHeight: 1.3, maxWidth: '580px', fontStyle: 'italic' }}>
                   "{situation.slice(0, 110)}{situation.length > 110 ? '…' : ''}"
@@ -246,7 +246,7 @@ function AppInner() {
               </div>
               {isDone && (
                 <button onClick={handleReset} style={{ padding: '9px 18px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t2)', fontSize: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  Nueva sesión
+                  {t('action.newSessionShort')}
                 </button>
               )}
             </div>
@@ -254,7 +254,7 @@ function AppInner() {
             {/* Conversación de la junta */}
             <div style={{ marginBottom: '32px' }}>
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '18px', fontWeight: 500 }}>
-                La conversación · clic en un director para ver su perfil
+                {t('board.conversationLabel')}
               </p>
               <DebateChat turns={turns} onClickDirector={setSelectedDirector} />
             </div>
@@ -269,7 +269,7 @@ function AppInner() {
             {isDone && (
               <div style={{ textAlign: 'center', marginTop: '48px' }}>
                 <button onClick={handleReset} style={{ padding: '13px 32px', borderRadius: 'var(--r-md)', border: '1px solid var(--blue-bd)', background: 'var(--blue-dim)', color: 'var(--blue)', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-                  🏛️ Nueva sesión de junta
+                  🏛️ {t('action.newSession')}
                 </button>
               </div>
             )}
@@ -279,7 +279,7 @@ function AppInner() {
         <DirectorsRoster directors={DIRECTORS} onClickDirector={setSelectedDirector} />
 
         <footer style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid var(--bd)', textAlign: 'center' }}>
-          <p style={{ fontSize: '11px', color: 'var(--t3)' }}>Junta Directiva AI · 12 expertos · Powered by Gemini · 2026</p>
+          <p style={{ fontSize: '11px', color: 'var(--t3)' }}>{t('footer.tagline')}</p>
         </footer>
       </main>
 
