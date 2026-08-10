@@ -7,10 +7,8 @@ import DownloadBanner from './components/DownloadBanner.jsx'
 import ReportModal from './components/ReportModal.jsx'
 import ChairmanChat from './components/ChairmanChat.jsx'
 import { useBoard } from './hooks/useBoard.js'
-import { useContextBuilder } from './hooks/useContext.js'
 import { useReport } from './hooks/useReport.js'
 import { useChairmanChat } from './hooks/useChairmanChat.js'
-import ContextPanel from './components/ContextPanel.jsx'
 import { DIRECTORS, MEETING_TYPES } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n } from './lib/i18n.js'
@@ -51,11 +49,9 @@ function AppInner() {
   // inicial de nuevo tras "Nueva sesión" como para el estado idle antes del primer convene.
   const { turns, verdict, status, convene } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
-  const { items: ctxItems, addNote, processFile, processURL, removeItem: removeCtxItem,
-          hasContext, isProcessing: ctxProcessing } = useContextBuilder()
   const { report, loading: reportLoading, error: reportError, generateReport, reset: resetReport } = useReport()
   const [showReport, setShowReport] = useState(false)
-  const { messages: chatMessages, sending: chatSending, error: chatError, freeMessagesUsed, sendMessage: sendChatMessage, reset: resetChat } = useChairmanChat()
+  const { messages: chatMessages, sending: chatSending, error: chatError, sendMessage: sendChatMessage, reset: resetChat } = useChairmanChat()
 
   // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
   // se deriva de `turns` en vez de tocar esa función, ya que solo se le pasan directores
@@ -244,34 +240,9 @@ function AppInner() {
                 </div>
               </div>
 
-              {/* Panel de contexto enriquecido */}
-              <div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
-                  <p style={{ fontSize:'11px', color:'var(--t3)', letterSpacing:'.08em', textTransform:'uppercase', fontWeight:500 }}>
-                    Contexto adicional
-                    <span style={{ marginLeft:'6px', fontSize:'10px', padding:'2px 7px', borderRadius:'4px', background:'var(--blue-dim)', color:'var(--blue)', border:'1px solid var(--blue-bd)' }}>
-                      Opcional
-                    </span>
-                  </p>
-                  {hasContext && (
-                    <span style={{ fontSize:'11px', color:'var(--blue)' }}>
-                      {ctxItems.filter(i=>i.status==='done').length} fuente{ctxItems.filter(i=>i.status==='done').length!==1?'s':''} lista{ctxItems.filter(i=>i.status==='done').length!==1?'s':''}
-                    </span>
-                  )}
-                </div>
-                <ContextPanel
-                  items={ctxItems}
-                  onProcessFile={(f) => processFile(f, null)}
-                  onProcessURL={(url) => processURL(url, null)}
-                  onAddNote={(text) => addNote(text, null)}
-                  onRemove={removeCtxItem}
-                  isProcessing={ctxProcessing}
-                />
-              </div>
-
               <button
                 onClick={handleConvene}
-                disabled={!situation.trim() || ctxProcessing}
+                disabled={!situation.trim()}
                 style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: situation.trim() ? 'var(--blue)' : 'var(--bg3)', color: situation.trim() ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: situation.trim() ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
               >
                 🏛️ {t('action.convene')}
@@ -332,10 +303,7 @@ function AppInner() {
                 messages={chatMessages}
                 sending={chatSending}
                 error={chatError}
-                freeMessagesUsed={freeMessagesUsed}
-                hasKey={false}
                 onSend={handleSendChat}
-                onOpenSettings={() => {}}
               />
             )}
 

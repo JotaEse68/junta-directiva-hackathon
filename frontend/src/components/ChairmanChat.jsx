@@ -1,11 +1,9 @@
 import React, { useState } from 'react'
-import { FREE_CHAT_LIMIT } from '../hooks/useChairmanChat.js'
 
-export default function ChairmanChat({ messages, sending, error, freeMessagesUsed, hasKey, onSend, onOpenSettings }) {
+export default function ChairmanChat({ messages, sending, error, onSend }) {
   const [input, setInput] = useState('')
 
-  const limitReached = !hasKey && freeMessagesUsed >= FREE_CHAT_LIMIT
-  const canSend = input.trim() && !sending && !limitReached
+  const canSend = input.trim() && !sending
 
   const handleSend = () => {
     if (!canSend) return
@@ -20,11 +18,6 @@ export default function ChairmanChat({ messages, sending, error, freeMessagesUse
           <span style={{ fontSize: '16px' }}>💬</span>
           <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--t1)' }}>Pregúntale al Chairman</p>
         </div>
-        {!hasKey && (
-          <span style={{ fontSize: '11px', color: 'var(--t3)' }}>
-            {Math.min(freeMessagesUsed, FREE_CHAT_LIMIT)}/{FREE_CHAT_LIMIT} mensajes gratis
-          </span>
-        )}
       </div>
 
       {messages.length > 0 && (
@@ -55,33 +48,24 @@ export default function ChairmanChat({ messages, sending, error, freeMessagesUse
       )}
 
       <div style={{ padding: '16px 22px' }}>
-        {limitReached ? (
-          <div style={{ padding: '12px 16px', background: 'var(--blue-dim)', border: '1px solid var(--blue-bd)', borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <p style={{ fontSize: '12px', color: 'var(--t2)' }}>Llegaste al límite gratis de esta sesión.</p>
-            <button onClick={onOpenSettings} style={{ fontSize: '12px', color: 'var(--blue)', fontWeight: 600, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>
-              Usar mi API key →
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && canSend) handleSend() }}
-              placeholder="Pregunta algo sobre el veredicto o el debate..."
-              disabled={sending}
-              style={{ flex: 1, padding: '11px 14px', background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', color: 'var(--t1)', fontSize: '13px', outline: 'none' }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!canSend}
-              style={{ padding: '11px 18px', borderRadius: 'var(--r-sm)', border: 'none', background: canSend ? 'var(--blue)' : 'var(--bg3)', color: canSend ? 'var(--bg0)' : 'var(--t3)', fontSize: '13px', fontWeight: 700, cursor: canSend ? 'pointer' : 'not-allowed' }}
-            >
-              {sending ? '...' : 'Enviar'}
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && canSend) handleSend() }}
+            placeholder="Pregunta algo sobre el veredicto o el debate..."
+            disabled={sending}
+            style={{ flex: 1, padding: '11px 14px', background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', color: 'var(--t1)', fontSize: '13px', outline: 'none' }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            style={{ padding: '11px 18px', borderRadius: 'var(--r-sm)', border: 'none', background: canSend ? 'var(--blue)' : 'var(--bg3)', color: canSend ? 'var(--bg0)' : 'var(--t3)', fontSize: '13px', fontWeight: 700, cursor: canSend ? 'pointer' : 'not-allowed' }}
+          >
+            {sending ? '...' : 'Enviar'}
+          </button>
+        </div>
       </div>
     </div>
   )

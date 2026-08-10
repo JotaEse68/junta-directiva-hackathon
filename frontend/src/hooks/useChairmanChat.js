@@ -2,8 +2,6 @@ import { useState, useCallback } from 'react'
 import { streamCompletion } from '../lib/aiClient.js'
 import { DIRECTORS } from '../lib/directors.js'
 
-export const FREE_CHAT_LIMIT = 10
-
 function buildChairmanSystem({ situation, turns, verdict }) {
   const debateSummary = turns
     .map(t => {
@@ -72,7 +70,5 @@ export function useChairmanChat() {
 
   const reset = useCallback(() => { setMessages([]); setError(null) }, [])
 
-  const freeMessagesUsed = messages.filter(m => m.role === 'user').length
-
-  return { messages, sending, error, freeMessagesUsed, sendMessage, reset }
+  return { messages, sending, error, sendMessage, reset }
 }
