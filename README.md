@@ -90,7 +90,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram
 
 - [x] Gemini called via Vertex AI (`gemini-2.5-flash`, `backend/agents/directors.py` + `chairman.py`), visible in code
 - [x] Google ADK used for agent orchestration (`google.adk.Agent` + `InMemoryRunner`), visible in code and in the architecture diagram
-- [ ] Cloud Run + Firestore both provisioned and shown in the demo video (console or logs) — **not yet deployed**
+- [x] Cloud Run + Firestore both provisioned and verified live — backend at https://junta-backend-923278368829.us-central1.run.app, frontend at https://junta-directiva-hackathon.web.app, end-to-end smoke-tested with real Vertex AI + Firestore (still needs to be **shown in the demo video**)
 - [ ] Repo shared with `testing@devpost.com` + `cloudhackathons@google.com` (if kept private) — pending
 - [x] README has spin-up instructions a stranger could follow (this file)
 - [x] Architecture diagram included in repo (`docs/architecture.md`)
