@@ -34,12 +34,15 @@ export function useReport() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const generateReport = useCallback(async ({ situation, meetingType, activeDirectors, directorStates, verdict, apiKey }) => {
+  const generateReport = useCallback(async ({ situation, meetingType, turns, verdict, apiKey }) => {
     setLoading(true)
     setError(null)
     setReport(null)
     try {
-      const activeIds = new Set(activeDirectors.map(d => d.id))
+      // El orquestador (backend/orchestrator.py) corre siempre los 12 directores, así que
+      // en la práctica "missingDirectors" queda vacío — se conserva por si algún día vuelve
+      // a existir un subconjunto (p.ej. un turn cuyo director_id no aparece en turns).
+      const activeIds = new Set(turns.map(t => t.director_id))
       const missingDirectors = DIRECTORS.filter(d => !activeIds.has(d.id))
 
       const quickResults = await Promise.all(missingDirectors.map(async (director) => {
@@ -52,8 +55,12 @@ export function useReport() {
       }))
       const quickTakes = quickResults.filter(q => q.text)
 
-      const liveSummary = activeDirectors
-        .map(d => `${d.name} (${d.title}) [debate en vivo]:\n${directorStates[d.id]?.text || ''}`)
+      const liveSummary = turns
+        .map(t => {
+          const director = DIRECTORS.find(d => d.id === t.director_id)
+          const label = director ? `${director.name} (${director.title})` : t.director_id
+          return `${label} [debate en vivo]:\n${t.text}`
+        })
         .join('\n\n')
       const quickSummary = quickTakes
         .map(q => `${q.director.name} (${q.director.title}) [opinión exprés]:\n${q.text}`)

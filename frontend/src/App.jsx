@@ -6,17 +6,15 @@ import VerdictPanel from './components/VerdictPanel.jsx'
 import DownloadBanner from './components/DownloadBanner.jsx'
 import ReportModal from './components/ReportModal.jsx'
 import ChairmanChat from './components/ChairmanChat.jsx'
-import SettingsModal from './components/SettingsModal.jsx'
 import { useBoard } from './hooks/useBoard.js'
 import { useContextBuilder } from './hooks/useContext.js'
 import { useReport } from './hooks/useReport.js'
 import { useChairmanChat } from './hooks/useChairmanChat.js'
 import ContextPanel from './components/ContextPanel.jsx'
-import { DIRECTORS, MEETING_TYPES, selectDirectorsForMeeting, orderForDebate } from './lib/directors.js'
+import { DIRECTORS, MEETING_TYPES } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n } from './lib/i18n.js'
 
-const STORAGE_KEY = 'junta_api_key'
 const MAX_CHARS = 800
 
 // Mapea el id de tipo de reunión (en español, usado internamente en lib/directors.js)
@@ -44,55 +42,62 @@ function AppInner() {
   const { lang, setLang, t } = useI18n()
   const [situation, setSituation]   = useState('')
   const [meetingType, setMeetingType] = useState('decision')
-  const [selectedIds, setSelectedIds] = useState(() => selectDirectorsForMeeting('decision', DIRECTORS).map(d => d.id))
-  const [apiKey, setApiKey]         = useState(() => localStorage.getItem(STORAGE_KEY) || '')
-  const [showSettings, setShowSettings] = useState(false)
   const [selectedDirector, setSelectedDirector] = useState(null)
 
-  const { conveneBoard, reset, pause, resume, directorStates, verdict, verdictLoading, phase, activeDirectors, globalError, isPaused } = useBoard()
+  // El backend (backend/orchestrator.py) siempre convoca a los 12 directores en su orden
+  // fijo — ya no hay selección de directores ni API key de cliente (Vertex AI se autentica
+  // server-side vía la service account de Cloud Run). El hook tampoco expone un `reset`,
+  // así que "sesión iniciada" se rastrea localmente: sirve tanto para mostrar la pantalla
+  // inicial de nuevo tras "Nueva sesión" como para el estado idle antes del primer convene.
+  const { turns, verdict, status, convene } = useBoard()
+  const [hasStarted, setHasStarted] = useState(false)
   const { items: ctxItems, addNote, processFile, processURL, removeItem: removeCtxItem,
-          buildContextBlock, hasContext, isProcessing: ctxProcessing } = useContextBuilder()
+          hasContext, isProcessing: ctxProcessing } = useContextBuilder()
   const { report, loading: reportLoading, error: reportError, generateReport, reset: resetReport } = useReport()
   const [showReport, setShowReport] = useState(false)
   const { messages: chatMessages, sending: chatSending, error: chatError, freeMessagesUsed, sendMessage: sendChatMessage, reset: resetChat } = useChairmanChat()
 
+  // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
+  // se deriva de `turns` en vez de tocar esa función, ya que solo se le pasan directores
+  // que ya completaron su turno.
+  const directorStates = useMemo(
+    () => Object.fromEntries(turns.map(t => [t.director_id, { status: 'done', text: t.text }])),
+    [turns]
+  )
   const consensus = useMemo(() => computeConsensus(directorStates), [directorStates])
 
   const handleGenerateReport = () => {
     setShowReport(true)
-    generateReport({ situation, meetingType, activeDirectors, directorStates, verdict, apiKey: apiKey || null })
+    generateReport({ situation, meetingType, turns, verdict, apiKey: null })
   }
 
   const handleSendChat = (text) => {
-    sendChatMessage(text, { situation, activeDirectors, directorStates, verdict }, { apiKey: apiKey || null })
-  }
-
-  const toggleDirector = (id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    sendChatMessage(text, { situation, turns, verdict }, { apiKey: null })
   }
 
   const handleMeetingTypeChange = (id) => {
     setMeetingType(id)
-    setSelectedIds(selectDirectorsForMeeting(id, DIRECTORS).map(d => d.id))
   }
 
-  const isIdle     = phase === 'idle'
-  const isRunning  = !isIdle && phase !== 'done'
-  const isDone     = phase === 'done'
+  const isIdle    = !hasStarted
+  const isRunning = hasStarted && status !== 'done'
+  const isDone    = hasStarted && status === 'done'
 
-  const doneCount  = Object.values(directorStates).filter(s => s.status === 'done').length
-  const totalCount = activeDirectors.length
+  const doneCount  = turns.length
+  const totalCount = DIRECTORS.length
 
   const handleConvene = useCallback(async () => {
-    if (!situation.trim() || !isIdle || selectedIds.length === 0) return
-    const directors = orderForDebate(selectedIds, DIRECTORS)
-    await conveneBoard({ directors, situation: situation.trim(), meetingType, contextBlock: buildContextBlock(), apiKey: apiKey || null })
-  }, [situation, meetingType, selectedIds, apiKey, isIdle, conveneBoard])
+    if (!situation.trim() || !isIdle) return
+    setHasStarted(true)
+    await convene(situation.trim(), meetingType)
+  }, [situation, meetingType, isIdle, convene])
 
-  const handleReset = () => { reset(); resetReport(); resetChat(); setShowReport(false); setSituation('') }
-  const handleSaveKey = (key) => {
-    localStorage.setItem(STORAGE_KEY, key)
-    setApiKey(key)
+  const handleReset = () => {
+    setHasStarted(false)
+    resetReport()
+    resetChat()
+    setShowReport(false)
+    setSituation('')
   }
 
   // Extrae el voto de un director del texto generado
@@ -126,22 +131,9 @@ function AppInner() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isRunning && (
             <span style={{ fontSize: '12px', color: 'var(--blue)', padding: '4px 12px', borderRadius: '20px', background: 'var(--blue-dim)', border: '1px solid var(--blue-bd)' }}>
-              {phase === 'convening' ? 'Convocando...' : phase === 'debating' ? (isPaused ? `Pausado · ${doneCount}/${totalCount}` : `Debate · ${doneCount}/${totalCount}`) : 'Emitiendo veredicto...'}
+              {status === 'starting' ? 'Convocando...' : `Debate · ${doneCount}/${totalCount}`}
             </span>
           )}
-          {phase === 'debating' && (
-            <button
-              onClick={isPaused ? resume : pause}
-              title={isPaused ? 'Reanudar el debate' : 'Pausar el debate — no se pierde lo ya generado'}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t3)', fontSize: '13px' }}
-            >
-              {isPaused ? '▶️' : '⏸️'}
-            </button>
-          )}
-          <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: `1px solid ${apiKey ? 'var(--blue-bd)' : 'var(--bd)'}`, color: apiKey ? 'var(--blue)' : 'var(--t3)', background: apiKey ? 'var(--blue-dim)' : 'transparent' }}>
-            {apiKey ? '🔵 Gemini' : '🌐 3/hora'}
-          </span>
-          <button onClick={() => setShowSettings(true)} style={{ padding: '6px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t3)', fontSize: '13px' }}>⚙️</button>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
             <button
               onClick={() => setLang('en')}
@@ -179,14 +171,14 @@ function AppInner() {
               </p>
             </div>
 
-            {/* El elenco — pills seleccionables: quién participa en esta sesión */}
+            {/* El elenco — informativo: los 12 directores siempre participan (el orquestador
+                del backend corre la lista completa en orden fijo, no hay selección). */}
             <div className="fade-up" style={{ marginBottom: '48px', animationDelay: '.08s' }}>
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '14px', textAlign: 'center', fontWeight: 500 }}>
-                Elige quién participa · {selectedIds.length} de {DIRECTORS.length} directores
+                Tu junta · {DIRECTORS.length} directores
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                 {DIRECTORS.map(d => {
-                  const isOn = selectedIds.includes(d.id)
                   const isJottarina = d.id === 'jottarina'
                   const activeBorder = isJottarina ? 'var(--red-bd)' : 'var(--blue-bd)'
                   const activeColor  = isJottarina ? 'var(--red)' : 'var(--blue)'
@@ -194,15 +186,14 @@ function AppInner() {
                   return (
                     <button
                       key={d.id}
-                      onClick={() => toggleDirector(d.id)}
-                      title={isOn ? `Quitar a ${d.name} de esta sesión` : `Incluir a ${d.name} en esta sesión`}
+                      onClick={() => setSelectedDirector(d)}
+                      title={`Ver perfil de ${d.name}`}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '7px',
                         padding: '7px 14px', borderRadius: '24px',
-                        border: `1px solid ${isOn ? activeBorder : 'var(--bd)'}`,
-                        background: isOn ? activeBg : 'rgba(255,255,255,0.03)',
-                        color: isOn ? activeColor : 'var(--t3)',
-                        opacity: isOn ? 1 : 0.55,
+                        border: `1px solid ${activeBorder}`,
+                        background: activeBg,
+                        color: activeColor,
                         cursor: 'pointer', fontSize: '12px', fontWeight: 500,
                         transition: 'all .15s',
                       }}
@@ -210,16 +201,13 @@ function AppInner() {
                       <span>{d.emoji}</span>
                       <span>{d.name}</span>
                       <span style={{ fontWeight: 400, opacity: .6, fontSize: '11px' }}>· {d.title.split(' ').slice(-1)[0]}</span>
-                      {!isOn && <span style={{ fontSize: '11px' }}>✕</span>}
                     </button>
                   )
                 })}
               </div>
-              {selectedIds.length > 8 && (
-                <p style={{ fontSize: '11px', color: 'var(--t3)', textAlign: 'center', marginTop: '10px' }}>
-                  El debate es secuencial (cada director escucha a los anteriores) — con {selectedIds.length} directores puede tardar varios minutos.
-                </p>
-              )}
+              <p style={{ fontSize: '11px', color: 'var(--t3)', textAlign: 'center', marginTop: '10px' }}>
+                El debate es secuencial (cada director escucha a los anteriores) — puede tardar varios minutos.
+              </p>
             </div>
 
             {/* Formulario */}
@@ -273,9 +261,9 @@ function AppInner() {
                 </div>
                 <ContextPanel
                   items={ctxItems}
-                  onProcessFile={(f) => processFile(f, apiKey||null)}
-                  onProcessURL={(url) => processURL(url, apiKey||null)}
-                  onAddNote={(text) => addNote(text, apiKey||null)}
+                  onProcessFile={(f) => processFile(f, null)}
+                  onProcessURL={(url) => processURL(url, null)}
+                  onAddNote={(text) => addNote(text, null)}
                   onRemove={removeCtxItem}
                   isProcessing={ctxProcessing}
                 />
@@ -283,16 +271,11 @@ function AppInner() {
 
               <button
                 onClick={handleConvene}
-                disabled={!situation.trim() || ctxProcessing || selectedIds.length === 0}
-                style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: (situation.trim() && selectedIds.length > 0) ? 'var(--blue)' : 'var(--bg3)', color: (situation.trim() && selectedIds.length > 0) ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: (situation.trim() && selectedIds.length > 0) ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
+                disabled={!situation.trim() || ctxProcessing}
+                style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: situation.trim() ? 'var(--blue)' : 'var(--bg3)', color: situation.trim() ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: situation.trim() ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
               >
-                {selectedIds.length === 0 ? '⚠️ Elige al menos un director' : `🏛️ ${t('action.convene')}`}
+                🏛️ {t('action.convene')}
               </button>
-
-              <p style={{ fontSize: '12px', color: 'var(--t3)', textAlign: 'center' }}>
-                {apiKey ? '🔑 Tu API key · reuniones ilimitadas' : '🌐 Modo gratuito · 3 reuniones/hora'} ·{' '}
-                <button onClick={() => setShowSettings(true)} style={{ color: 'var(--blue)', fontSize: '12px', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>cambiar</button>
-              </p>
             </div>
           </>
         )}
@@ -304,7 +287,7 @@ function AppInner() {
             <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: '11px', color: 'var(--blue)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 500 }}>
-                  {phase === 'convening' ? 'Convocando junta...' : phase === 'debating' ? `Debate en curso · ${doneCount}/${totalCount}` : phase === 'verdict' ? 'Emitiendo veredicto...' : 'Sesión completada'}
+                  {status === 'starting' ? 'Convocando junta...' : isDone ? 'Sesión completada' : `Debate en curso · ${doneCount}/${totalCount}`}
                 </p>
                 <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 400, color: 'var(--t1)', lineHeight: 1.3, maxWidth: '580px', fontStyle: 'italic' }}>
                   "{situation.slice(0, 110)}{situation.length > 110 ? '…' : ''}"
@@ -317,26 +300,18 @@ function AppInner() {
               )}
             </div>
 
-            {/* Error */}
-            {globalError && (
-              <div style={{ padding: '14px 18px', background: 'var(--red-dim)', border: '1px solid var(--red-bd)', borderRadius: 'var(--r-md)', color: 'var(--red)', fontSize: '13px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-                <span>⚠️ {globalError}</span>
-                {!apiKey && <button onClick={() => setShowSettings(true)} style={{ color: 'var(--blue)', fontSize: '12px', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>Añadir API key →</button>}
-              </div>
-            )}
-
             {/* Conversación de la junta */}
             <div style={{ marginBottom: '32px' }}>
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '18px', fontWeight: 500 }}>
                 La conversación · clic en un director para ver su perfil
               </p>
-              <DebateChat directors={activeDirectors} directorStates={directorStates} onClickDirector={setSelectedDirector} />
+              <DebateChat turns={turns} onClickDirector={setSelectedDirector} />
             </div>
 
             {/* Veredicto — la conclusión, al final de la conversación */}
-            {(verdict || verdictLoading) && (
+            {(verdict || (isRunning && doneCount === totalCount)) && (
               <div style={{ marginBottom: '28px' }}>
-                <VerdictPanel text={verdict} loading={verdictLoading} consensus={isDone ? consensus : null} />
+                <VerdictPanel text={verdict} loading={status === 'running' && !verdict} consensus={isDone ? consensus : null} />
               </div>
             )}
 
@@ -344,7 +319,7 @@ function AppInner() {
             {isDone && verdict && (
               <div style={{ marginBottom: '28px' }}>
                 <DownloadBanner
-                  sessionData={{ directorCount: activeDirectors.length }}
+                  sessionData={{ directorCount: turns.length }}
                   loading={reportLoading}
                   onGenerate={handleGenerateReport}
                 />
@@ -358,9 +333,9 @@ function AppInner() {
                 sending={chatSending}
                 error={chatError}
                 freeMessagesUsed={freeMessagesUsed}
-                hasKey={!!apiKey}
+                hasKey={false}
                 onSend={handleSendChat}
-                onOpenSettings={() => setShowSettings(true)}
+                onOpenSettings={() => {}}
               />
             )}
 
@@ -392,7 +367,6 @@ function AppInner() {
           onClose={() => setShowReport(false)}
         />
       )}
-      {showSettings && <SettingsModal currentKey={apiKey} onSave={handleSaveKey} onClose={() => setShowSettings(false)} />}
       {selectedDirector && (
         <DirectorModal
           director={selectedDirector}

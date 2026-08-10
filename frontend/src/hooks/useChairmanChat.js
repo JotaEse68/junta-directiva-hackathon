@@ -1,11 +1,16 @@
 import { useState, useCallback } from 'react'
 import { streamCompletion } from '../lib/aiClient.js'
+import { DIRECTORS } from '../lib/directors.js'
 
 export const FREE_CHAT_LIMIT = 10
 
-function buildChairmanSystem({ situation, activeDirectors, directorStates, verdict }) {
-  const debateSummary = activeDirectors
-    .map(d => `${d.name} (${d.title}): ${directorStates[d.id]?.text || ''}`)
+function buildChairmanSystem({ situation, turns, verdict }) {
+  const debateSummary = turns
+    .map(t => {
+      const director = DIRECTORS.find(d => d.id === t.director_id)
+      const label = director ? `${director.name} (${director.title})` : t.director_id
+      return `${label}: ${t.text}`
+    })
     .join('\n\n')
 
   return `Eres Roberto Alcántara, Chairman de la Junta Directiva AI. Acabas de sintetizar el debate de la junta sobre la situación del usuario y ya diste tu veredicto. Ahora el usuario te hace preguntas de seguimiento directamente a ti.

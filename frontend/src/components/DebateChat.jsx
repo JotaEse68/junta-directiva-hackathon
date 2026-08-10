@@ -1,5 +1,6 @@
 import React from 'react'
 import { classifyVote } from '../lib/consensus.js'
+import { DIRECTORS } from '../lib/directors.js'
 
 const VOTE_BADGE = {
   favor:  { icon: '✓', label: 'A favor' },
@@ -7,14 +8,9 @@ const VOTE_BADGE = {
   mixto:  { icon: '~', label: 'Con matices' },
 }
 
-function Bubble({ director, state, onClick }) {
-  const { status, text, error } = state
-  const isStreaming = status === 'streaming'
-  const isDone = status === 'done'
-  const isError = status === 'error'
+function Bubble({ director, text, onClick }) {
   const { color, colorDim, colorBorder } = director
-
-  const vote = isDone ? classifyVote(director.id, text) : null
+  const vote = classifyVote(director.id, text)
   const badge = vote ? VOTE_BADGE[vote] : null
 
   return (
@@ -35,31 +31,17 @@ function Bubble({ director, state, onClick }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
           <button onClick={onClick} style={{ fontSize: '13px', fontWeight: 700, color }}>{director.name}</button>
           <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{director.title}</span>
-          {isStreaming && <span style={{ fontSize: '11px', color, opacity: .8 }}>escribiendo…</span>}
         </div>
 
         <div style={{
           padding: '12px 16px', borderRadius: '3px 14px 14px 14px',
-          background: isError ? 'var(--red-dim)' : colorDim,
-          border: `1px solid ${isError ? 'var(--red-bd)' : colorBorder}`,
+          background: colorDim,
+          border: `1px solid ${colorBorder}`,
           maxWidth: '620px',
         }}>
-          {isError ? (
-            <p style={{ fontSize: '13px', color: 'var(--red)' }}>No pudo responder: {error}</p>
-          ) : (
-            <>
-              {text.split('\n').filter(l => l.trim()).map((p, i) => (
-                <p key={i} style={{ fontSize: '13.5px', lineHeight: 1.65, color: 'var(--t1)', marginBottom: '8px' }}>{p}</p>
-              ))}
-              {isStreaming && (
-                <span style={{ display: 'inline-flex', gap: '3px' }}>
-                  <span className="dot" style={{ background: color }}></span>
-                  <span className="dot" style={{ background: color }}></span>
-                  <span className="dot" style={{ background: color }}></span>
-                </span>
-              )}
-            </>
-          )}
+          {text.split('\n').filter(l => l.trim()).map((p, i) => (
+            <p key={i} style={{ fontSize: '13.5px', lineHeight: 1.65, color: 'var(--t1)', marginBottom: '8px' }}>{p}</p>
+          ))}
         </div>
 
         {badge && (
@@ -70,15 +52,23 @@ function Bubble({ director, state, onClick }) {
   )
 }
 
-export default function DebateChat({ directors, directorStates, onClickDirector }) {
-  const started = directors.filter(d => ['streaming', 'done', 'error'].includes(directorStates[d.id]?.status))
-  const pending = directors.filter(d => (directorStates[d.id]?.status || 'pending') === 'pending')
+// turns: [{ director_id, text }], una entrada por director conforme va llegando desde
+// Firestore (backend/orchestrator.py corre siempre los 12 directores en orden fijo).
+// Los metadatos de presentación (nombre, emoji, colores...) se resuelven contra
+// lib/directors.js por director_id — el turn en sí solo trae id + texto.
+export default function DebateChat({ turns, onClickDirector }) {
+  const doneIds = new Set(turns.map(t => t.director_id))
+  const pending = DIRECTORS.filter(d => !doneIds.has(d.id))
 
   return (
     <div>
-      {started.map(d => (
-        <Bubble key={d.id} director={d} state={directorStates[d.id]} onClick={() => onClickDirector(d)} />
-      ))}
+      {turns.map((turn, i) => {
+        const director = DIRECTORS.find(d => d.id === turn.director_id)
+        if (!director) return null
+        return (
+          <Bubble key={`${turn.director_id}-${i}`} director={director} text={turn.text} onClick={() => onClickDirector(director)} />
+        )
+      })}
 
       {pending.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '8px 0' }}>
