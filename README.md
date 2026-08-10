@@ -4,11 +4,22 @@
 
 You describe a business situation and pick a meeting type; 12 specialized director agents (Strategy, Finance, Marketing, Operations, Legal, Technology, Sales, Product, People, Data, Chairman/Mentor, and a "Chief Reality Officer" that says the uncomfortable part out loud) each weigh in, and a Chairman agent closes the debate with consensus points, the main disagreement, a final verdict, and prioritized next steps.
 
+**Live demo:** https://junta-directiva-hackathon.web.app · **API:** https://junta-backend-923278368829.us-central1.run.app
+
 ## Why this counts as "beyond the standard chat loop"
 
 `POST /sessions` returns a `session_id` immediately. The 12-director-plus-chairman debate then runs as a FastAPI `BackgroundTasks` job on the server, independent of whether the browser tab stays open, writing each turn to Firestore as it completes. For this board-convening/debate flow — the flow that satisfies the hackathon's async/GCP requirements — the frontend never calls Gemini directly: it only subscribes to the Firestore session document (`onSnapshot`) and renders turns and the verdict as they land. See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram.
 
-**Known gap:** two other UI features — the post-verdict "informe completo" report (`ReportModal`/`DownloadBanner`) and the chairman follow-up chat (`ChairmanChat`) — depend on a `/api/coach` endpoint that doesn't exist in this competition build's backend (only `/health`, `/sessions`, `/sessions/{id}`), so they've been removed from the rendered UI for this build rather than shipped broken; the component/hook files remain in the tree for the underlying product outside the contest scope.
+## Features
+
+- **12 director personas + a Chairman** debate a business situation and converge on concrete options and a recommendation — not a cold up/down verdict.
+- **Director selection** — convene the full board or just the directors relevant to your situation.
+- **Full report generation** and a **follow-up chat with the Chairman** after the debate closes, via a lightweight `/coach` endpoint.
+- **Additional context panel** — attach a PDF, Word doc, URL, or free-text notes; the backend summarizes it via `/context` before the debate starts.
+- **Pause / resume** an in-progress debate — nothing already generated is lost, the orchestrator polls a Firestore flag between turns.
+- **Live "thinking" indicator** for whichever director is currently being generated.
+- **Cost protection**: a 3-requests-per-day-per-IP free tier (shared across `/sessions`, `/coach`, `/context`), with an optional bring-your-own-Gemini-API-key bypass for unlimited use — billed to the user's own Google account, not the project owner's.
+- **Bilingual (ES/EN)** throughout, including per-director bios and meeting-type copy.
 
 ## Stack
 
@@ -19,18 +30,14 @@ You describe a business situation and pick a meeting type; 12 specialized direct
 
 ## Competition build vs. the underlying product
 
-The underlying product ("Junta Directiva AI") supports multiple AI providers and client-side API keys. This hackathon entry intentionally narrows the product to comply with contest rules and keep the judged surface small and unambiguous:
+The underlying product ("Junta Directiva AI", [juntadirectiva.vercel.app](https://juntadirectiva.vercel.app)) supports multiple AI providers (Claude/OpenAI/Gemini) with client-side, provider-agnostic API keys. This hackathon entry intentionally narrows the stack to comply with contest rules while restoring full feature parity:
 
-- **Gemini-only**, called server-side via Vertex AI — no provider picker, no client-side API key input.
-- **All 12 directors always convene**, in a fixed order — no director-selection UI.
-- **No pause/resume** — a session runs start to finish once created.
+- **Gemini-only**, called server-side via Vertex AI by default — no provider picker. The optional BYOK bypass (above) is also Gemini-only, by design, to keep the judged surface unambiguous.
+- Every other product feature (director selection, full report, chairman chat, additional context, pause/resume) has been ported to this async, ADK-orchestrated architecture rather than dropped.
 
 ## Status of this repo
 
-This is a hackathon submission repo under active build. As of this commit:
-
-- The frontend and backend are implemented and their test suites pass locally (backend tests use mocked agent calls / a Firestore emulator; frontend tests use mocked Firestore).
-- **Not yet done:** the GCP project itself hasn't been created, and the app hasn't been deployed to Cloud Run / Firebase Hosting yet. There is no live URL. The spin-up instructions below are for someone running the stack against their **own** GCP project and credentials.
+Deployed and live (see links above), end-to-end smoke-tested against real Vertex AI + Firestore. Frontend and backend test suites pass locally (backend tests mock agent calls / use a Firestore emulator; frontend tests mock Firestore). The spin-up instructions below are for running the stack against your **own** GCP project and credentials.
 
 ## Run locally
 
@@ -80,7 +87,7 @@ Then:
 npm run dev
 ```
 
-The frontend only ever needs these three environment variables — there is no client-side Gemini/AI API key for the board-convening flow; all model calls in that flow happen from the backend. (The "informe completo" and chairman-chat features referenced above have been removed from this build's UI rather than shipped calling a nonexistent `/api/coach` endpoint; see the known gap noted earlier.)
+The frontend only ever needs these three environment variables. By default there is no client-side Gemini/AI API key — all model calls happen from the backend via Vertex AI. A user can optionally paste their own Gemini API key in the settings modal to bypass the 3/day free-tier limit; that key is only ever sent to the backend per-request, never stored server-side, and calls made with it bill the user's own Google account, not the project owner's.
 
 ## Architecture
 
@@ -91,10 +98,10 @@ See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram
 - [x] Gemini called via Vertex AI (`gemini-2.5-flash`, `backend/agents/directors.py` + `chairman.py`), visible in code
 - [x] Google ADK used for agent orchestration (`google.adk.Agent` + `InMemoryRunner`), visible in code and in the architecture diagram
 - [x] Cloud Run + Firestore both provisioned and verified live — backend at https://junta-backend-923278368829.us-central1.run.app, frontend at https://junta-directiva-hackathon.web.app, end-to-end smoke-tested with real Vertex AI + Firestore (still needs to be **shown in the demo video**)
-- [ ] Repo shared with `testing@devpost.com` + `cloudhackathons@google.com` (if kept private) — pending
+- [x] Repo shared with `testing@devpost.com` + `cloudhackathons@google.com`
 - [x] README has spin-up instructions a stranger could follow (this file)
 - [x] Architecture diagram included in repo (`docs/architecture.md`)
-- [ ] Devpost submission has: hosted URL (if still up), text description, repo link, video — pending
+- [ ] Devpost submission has: hosted URL, text description, repo link, video — pending
 - [ ] Submitted before Aug 31, 2026, 17:00 PDT — pending
 
 ## License
