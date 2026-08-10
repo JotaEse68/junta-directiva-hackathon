@@ -1,48 +1,100 @@
-# Junta Directiva AI — Competition Build
+# Junta Directiva AI
 
-## About
+12 AI board-of-directors agents debate your situation with each other and issue an executive verdict with next steps — built for the **All Things Agentic Hackathon**, Collaborative Partner track.
 
-**Junta Directiva AI** is an AI-powered board of directors simulator. You describe a business situation, and 12 AI experts from different disciplines debate it among themselves, then deliver an executive verdict with actionable next steps.
+You describe a business situation and pick a meeting type; 12 specialized director agents (Strategy, Finance, Marketing, Operations, Legal, Technology, Sales, Product, People, Data, Chairman/Mentor, and a "Chief Reality Officer" that says the uncomfortable part out loud) each weigh in, and a Chairman agent closes the debate with consensus points, the main disagreement, a final verdict, and prioritized next steps.
 
-This competition build is powered by **Google Gemini** exclusively.
+## Why this counts as "beyond the standard chat loop"
 
-## Competition Build vs. Production
+`POST /sessions` returns a `session_id` immediately. The 12-director-plus-chairman debate then runs as a FastAPI `BackgroundTasks` job on the server, independent of whether the browser tab stays open, writing each turn to Firestore as it completes. The frontend never calls Gemini directly — it subscribes to the Firestore session document (`onSnapshot`) and renders turns and the verdict as they land. See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram.
 
-The **production version** (at [github.com/JotaEse68/juntadirectiva](https://github.com/JotaEse68/juntadirectiva)) supports multiple AI providers:
-- Claude (Anthropic) — direct browser calls
-- OpenAI — via proxy to avoid CORS
-- Gemini (Google) — via proxy to avoid CORS
+## Stack
 
-This **competition repository** intentionally narrows to **Gemini-only** to comply with contest rules. The frontend UI has been simplified:
-- No multi-provider selector
-- Single Gemini API key input (or free mode via server-provided key)
-- Simplified settings and storage logic
+- **Gemini** (`gemini-2.5-flash`) via **Vertex AI** — called only from the backend, using the Cloud Run service account's credentials (Application Default Credentials). No API key is ever exposed to the browser.
+- **Google ADK** (`google-adk`) for agent orchestration — 12 director agents + 1 chairman-synthesis agent, each an ADK `Agent` run through `google.adk.runners.InMemoryRunner`.
+- **Cloud Run** (backend, FastAPI) + **Firestore** (session state, Native mode) — the two GCP infra services this entry uses.
+- **React 18 + Vite** frontend, deployed to **Firebase Hosting**.
 
-## Tech Stack
+## Competition build vs. the underlying product
 
-- **Frontend:** React + Vite
-- **AI Model:** Google Gemini (via backend proxy for CORS handling)
-- **Styling:** CSS Grid, CSS variables
+The underlying product ("Junta Directiva AI") supports multiple AI providers and client-side API keys. This hackathon entry intentionally narrows the product to comply with contest rules and keep the judged surface small and unambiguous:
 
-## Getting Started
+- **Gemini-only**, called server-side via Vertex AI — no provider picker, no client-side API key input.
+- **All 12 directors always convene**, in a fixed order — no director-selection UI.
+- **No pause/resume** — a session runs start to finish once created.
 
-### Install Dependencies
+## Status of this repo
+
+This is a hackathon submission repo under active build. As of this commit:
+
+- The frontend and backend are implemented and their test suites pass locally (backend tests use mocked agent calls / a Firestore emulator; frontend tests use mocked Firestore).
+- **Not yet done:** the GCP project itself hasn't been created, and the app hasn't been deployed to Cloud Run / Firebase Hosting yet. There is no live URL. The spin-up instructions below are for someone running the stack against their **own** GCP project and credentials.
+
+## Run locally
+
+### Prerequisites
+
+- A GCP project with the Vertex AI API, Firestore API, and a Firestore database (Native mode) enabled.
+- A service account (or your own `gcloud auth application-default login` credentials) with `roles/aiplatform.user` and `roles/datastore.user` on that project.
+- A Firebase project (can be the same GCP project) with a Web app registered, for the frontend's Firestore SDK config.
+- Python 3.12, Node.js 18+.
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+export GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+export GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+uvicorn main:app --reload --port 8080
+```
+
+Run the test suite (mocks the ADK/Gemini calls, so it doesn't hit Vertex AI):
+
+```bash
+python -m pytest -v
+```
+
+### Frontend
 
 ```bash
 cd frontend
 npm install
 ```
 
-### Development
+Create `frontend/.env` (not committed) with:
+
+```
+VITE_BACKEND_URL=http://localhost:8080
+VITE_FIREBASE_API_KEY=your-firebase-web-api-key
+VITE_FIREBASE_PROJECT_ID=your-gcp-project-id
+```
+
+Then:
 
 ```bash
 npm run dev
 ```
 
-### Build
+The frontend only ever needs these three environment variables — there is no client-side Gemini/AI API key of any kind in this build; all model calls happen from the backend.
 
-```bash
-npm run build
-```
+## Architecture
 
-The production version at the original repo supports a full multi-provider experience with persistent provider selection and per-provider API key management.
+See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram and a breakdown of each component (frontend, backend, orchestrator, ADK agents, Firestore).
+
+## Compliance checklist (hackathon rules)
+
+- [x] Gemini called via Vertex AI (`gemini-2.5-flash`, `backend/agents/directors.py` + `chairman.py`), visible in code
+- [x] Google ADK used for agent orchestration (`google.adk.Agent` + `InMemoryRunner`), visible in code and in the architecture diagram
+- [ ] Cloud Run + Firestore both provisioned and shown in the demo video (console or logs) — **not yet deployed**
+- [ ] Repo shared with `testing@devpost.com` + `cloudhackathons@google.com` (if kept private) — pending
+- [x] README has spin-up instructions a stranger could follow (this file)
+- [x] Architecture diagram included in repo (`docs/architecture.md`)
+- [ ] Devpost submission has: hosted URL (if still up), text description, repo link, video — pending
+- [ ] Submitted before Aug 31, 2026, 17:00 PDT — pending
+
+## License
+
+Not yet specified.
