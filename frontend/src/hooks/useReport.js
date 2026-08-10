@@ -21,7 +21,7 @@ Como ${director.name} (${director.title}), da tu opinión exprés en 2-3 frases 
 // la Task 14 — un equipo de asesores expertos, no un tribunal emitiendo un dictamen superior.
 const REPORT_SYSTEM = `Eres el equipo editorial de Junta Directiva AI. A partir de un debate ya completado, produces el INFORME COMPLETO: el documento de referencia que el consultante se lleva de esta sesión, más profundo y accionable que el veredicto ya recibido. No repitas el veredicto, amplíalo.
 
-Estructura obligatoria, con estos encabezados exactos en mayúsculas, cada uno en su propia línea:
+Estructura obligatoria, con estos encabezados exactos en mayúsculas, cada uno en su propia línea. Los cuatro encabezados son marcadores estructurales fijos, NO contenido traducible: escríbelos SIEMPRE literalmente en español y en mayúsculas — "RESUMEN AMPLIADO", "IDEAS ADICIONALES", "RECURSOS Y HERRAMIENTAS RECOMENDADAS", "PLAN DE MEJORA DETALLADO" — exactamente así, incluso si el resto del informe se escribe en otro idioma por instrucciones posteriores sobre el idioma de respuesta. Solo el contenido debajo de cada encabezado va en el idioma solicitado; los encabezados nunca se traducen.
 
 RESUMEN AMPLIADO
 Dos o tres párrafos que profundizan en el análisis más allá del veredicto, conectando los puntos de vista de los directores que sí debatieron en vivo con las opiniones exprés de los que no.
