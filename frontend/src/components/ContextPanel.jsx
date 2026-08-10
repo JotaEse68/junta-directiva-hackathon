@@ -1,6 +1,26 @@
 import React, { useState, useRef } from 'react'
 import { useI18n } from '../lib/i18n.js'
 
+// Error CODES set by useContext.js (hooks/useContext.js) on validation and
+// processing failures — mapped here to i18n keys so the message follows the
+// UI's language without threading `t` into the hook. Any item.error that
+// ISN'T one of these keys is a raw message string from the backend (which is
+// Spanish-only regardless of `language`, see backend/context_utils.py) and is
+// rendered as-is.
+const ERROR_CODE_KEYS = {
+  FileType:      'context.errorFileType',
+  FileSize:      'context.errorFileSize',
+  ExtractFailed: 'context.errorExtractFailed',
+  ProcessingFile:'context.errorProcessingFile',
+  InvalidUrl:    'context.errorInvalidUrl',
+  UrlFailed:     'context.errorUrlFailed',
+}
+
+function resolveErrorMessage(t, error) {
+  const key = ERROR_CODE_KEYS[error]
+  return key ? t(key) : error
+}
+
 function ContextItem({ item, onRemove }) {
   const { t } = useI18n()
   const STATUS_LABEL = {
@@ -41,7 +61,7 @@ function ContextItem({ item, onRemove }) {
                 </span>
                 {STATUS_LABEL[item.status]}
               </span>
-            ) : isError ? item.error
+            ) : isError ? resolveErrorMessage(t, item.error)
               : t('context.briefingReady').replace('{count}', item.summary?.length || 0)
             }
           </p>

@@ -62,13 +62,28 @@ export function useContextBuilder() {
   }
 
   // Procesa un archivo (PDF o Word)
+  //
+  // Error reporting: item.error holds either a known error CODE (one of the
+  // ERROR_CODES below — ContextPanel.jsx maps these through t('context.error'+code)
+  // so the message follows the UI's language) or a raw message string from the
+  // backend (e.g. "No se pudo acceder a la URL (502)") when there's no matching
+  // code to localize — the backend itself is Spanish-only regardless of `language`
+  // (see backend/context_utils.py), so those messages aren't translated client-side.
+  //
+  // Validation failures (wrong extension, oversized file, malformed URL) create a
+  // visible error-state item via addItem/updateItem, same as the async failure
+  // paths below, instead of only returning a value — callers (ContextPanel.jsx)
+  // don't check the return value, so a silently-returned error was previously
+  // invisible in the UI (Task 17 review finding).
   const processFile = useCallback(async (file, language) => {
     const ext = file.name.split('.').pop().toLowerCase()
     if (!['pdf', 'doc', 'docx'].includes(ext)) {
-      return { error: 'Solo se admiten PDF y Word (.doc, .docx)' }
+      addItem({ type: 'file', name: file.name, status: 'error', error: 'FileType' })
+      return { error: 'FileType' }
     }
     if (file.size > 20 * 1024 * 1024) {
-      return { error: 'Archivo demasiado grande (máx 20MB)' }
+      addItem({ type: 'file', name: file.name, status: 'error', error: 'FileSize' })
+      return { error: 'FileSize' }
     }
 
     const id = addItem({ type: 'file', name: file.name, status: 'extracting' })
@@ -83,7 +98,7 @@ export function useContextBuilder() {
       }
 
       if (!extracted.trim()) {
-        updateItem(id, { status: 'error', error: 'No se pudo extraer texto del archivo' })
+        updateItem(id, { status: 'error', error: 'ExtractFailed' })
         return
       }
 
@@ -94,7 +109,7 @@ export function useContextBuilder() {
       updateItem(id, { status: 'done', summary })
 
     } catch (err) {
-      updateItem(id, { status: 'error', error: err.message || 'Error procesando archivo' })
+      updateItem(id, { status: 'error', error: err.message || 'ProcessingFile' })
     }
   }, [addItem, updateItem])
 
@@ -102,7 +117,8 @@ export function useContextBuilder() {
   const processURL = useCallback(async (url, language) => {
     if (!url.trim()) return
     try { new URL(url) } catch {
-      return { error: 'URL inválida' }
+      addItem({ type: 'url', name: url, status: 'error', error: 'InvalidUrl' })
+      return { error: 'InvalidUrl' }
     }
 
     const id = addItem({ type: 'url', name: url, status: 'fetching' })
@@ -111,7 +127,7 @@ export function useContextBuilder() {
       const summary = await summarizeViaServer('url', { url }, language)
       updateItem(id, { status: 'done', summary })
     } catch (err) {
-      updateItem(id, { status: 'error', error: err.message || 'No se pudo acceder a la URL' })
+      updateItem(id, { status: 'error', error: err.message || 'UrlFailed' })
     }
   }, [addItem, updateItem])
 
