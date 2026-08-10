@@ -10,18 +10,31 @@ const db = getFirestore(app)
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 
-export async function createSession(situation, meetingType, language, directorIds) {
+export async function createSession(situation, meetingType, language, directorIds, apiKey) {
   const body = { situation, meeting_type: meetingType, language }
   // Only include director_ids when non-null/non-empty, matching how omitting
   // `language` means "use the backend default" — omitting this means "all 12".
   if (directorIds && directorIds.length > 0) {
     body.director_ids = directorIds
   }
+  // Task 20 BYOK: only included when the user has connected their own Gemini
+  // key — bypasses the free-tier daily limit server-side (see
+  // backend/main.py's enforce_rate_limit) and routes every director/chairman
+  // call through call_agent_with_key instead of the default ADK/Vertex path.
+  if (apiKey) {
+    body.api_key = apiKey
+  }
   const res = await fetch(`${BACKEND_URL}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    // Same error-code convention as aiClient.js's callCoach: on 429 this is
+    // the stable code "RATE_LIMIT_EXCEEDED", not localized prose.
+    throw new Error(data.error || data.detail || `Error ${res.status}`)
+  }
   const { session_id } = await res.json()
   return session_id
 }

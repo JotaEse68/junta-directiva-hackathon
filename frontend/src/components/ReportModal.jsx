@@ -52,6 +52,11 @@ function buildDownloadText(t, situation, verdict, report) {
 
 export default function ReportModal({ situation, verdict, report, loading, error, onClose }) {
   const { t } = useI18n()
+  // Task 20: the hook's `error` may be the stable code "RATE_LIMIT_EXCEEDED"
+  // (untranslated on purpose, see useReport.js) — map it through i18n here
+  // rather than dumping the raw code, same convention as ContextPanel.jsx's
+  // error-code mapping (Task 17).
+  const displayError = error === 'RATE_LIMIT_EXCEEDED' ? t('errors.rateLimitExceeded') : error
 
   const handleDownload = () => {
     const text = buildDownloadText(t, situation, verdict, report)
@@ -92,7 +97,7 @@ export default function ReportModal({ situation, verdict, report, loading, error
 
           {error && !loading && (
             <div style={{ padding: '14px 18px', background: 'var(--red-dim)', border: '1px solid var(--red-bd)', borderRadius: 'var(--r-md)', color: 'var(--red)', fontSize: '13px' }}>
-              ⚠️ {error}
+              ⚠️ {displayError}
             </div>
           )}
 

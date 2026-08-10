@@ -4,6 +4,9 @@ import { useI18n } from '../lib/i18n.js'
 export default function ChairmanChat({ messages, sending, error, onSend }) {
   const { t } = useI18n()
   const [input, setInput] = useState('')
+  // Task 20: map the stable "RATE_LIMIT_EXCEEDED" code (see useChairmanChat.js)
+  // through i18n instead of dumping the raw error string.
+  const displayError = error === 'RATE_LIMIT_EXCEEDED' ? t('errors.rateLimitExceeded') : error
 
   const canSend = input.trim() && !sending
 
@@ -45,7 +48,7 @@ export default function ChairmanChat({ messages, sending, error, onSend }) {
 
       {error && (
         <div style={{ margin: '0 22px', padding: '10px 14px', background: 'var(--red-dim)', border: '1px solid var(--red-bd)', borderRadius: 'var(--r-sm)', color: 'var(--red)', fontSize: '12px' }}>
-          ⚠️ {error}
+          ⚠️ {displayError}
         </div>
       )}
 

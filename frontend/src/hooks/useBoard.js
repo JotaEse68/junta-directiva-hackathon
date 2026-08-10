@@ -10,25 +10,37 @@ export function useBoard() {
   const unsubscribeRef = useRef(null)
   const sessionIdRef = useRef(null)
 
-  const convene = useCallback(async (situation, meetingType, language, directorIds) => {
+  // `apiKey` (Task 20, optional): threaded straight through to createSession —
+  // when set, the backend bypasses the free-tier daily limit and runs the
+  // whole session via the user's own Gemini key (call_agent_with_key).
+  const convene = useCallback(async (situation, meetingType, language, directorIds, apiKey) => {
     unsubscribeRef.current?.()
     setTurns([])
     setVerdict(null)
     setStatus('starting')
     setPaused(false)
 
-    const sessionId = await createSession(situation, meetingType, language, directorIds)
-    sessionIdRef.current = sessionId
+    try {
+      const sessionId = await createSession(situation, meetingType, language, directorIds, apiKey)
+      sessionIdRef.current = sessionId
 
-    unsubscribeRef.current = subscribeToSession(sessionId, (data) => {
-      if (!data) return
-      setTurns(data.turns || [])
-      setVerdict(data.verdict ?? null)
-      setStatus(data.status || 'running')
-      setPaused(data.paused ?? false)
-    })
+      unsubscribeRef.current = subscribeToSession(sessionId, (data) => {
+        if (!data) return
+        setTurns(data.turns || [])
+        setVerdict(data.verdict ?? null)
+        setStatus(data.status || 'running')
+        setPaused(data.paused ?? false)
+      })
 
-    return sessionId
+      return sessionId
+    } catch (err) {
+      // createSession failed (e.g. 429 free-tier limit) before any session
+      // was ever created — reset to idle so the caller's UI falls back to
+      // the initial form instead of being stuck on "starting" forever, and
+      // rethrow so the caller (App.jsx) can surface the error.
+      setStatus('idle')
+      throw err
+    }
   }, [])
 
   // Pause takes effect between director turns only — the orchestrator polls

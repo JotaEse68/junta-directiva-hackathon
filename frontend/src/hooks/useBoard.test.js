@@ -24,7 +24,7 @@ describe('useBoard', () => {
     const { createSession } = await import('../lib/firestoreClient.js')
     const { result } = renderHook(() => useBoard())
     await act(async () => { await result.current.convene('situación de prueba', 'strategic', 'en') })
-    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', undefined)
+    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', undefined, undefined)
   })
 
   it('forwards directorIds to createSession', async () => {
@@ -33,7 +33,16 @@ describe('useBoard', () => {
     await act(async () => {
       await result.current.convene('situación de prueba', 'strategic', 'en', ['estratega', 'financiero'])
     })
-    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', ['estratega', 'financiero'])
+    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', ['estratega', 'financiero'], undefined)
+  })
+
+  it('forwards apiKey to createSession (Task 20 BYOK)', async () => {
+    const { createSession } = await import('../lib/firestoreClient.js')
+    const { result } = renderHook(() => useBoard())
+    await act(async () => {
+      await result.current.convene('situación de prueba', 'strategic', 'en', ['estratega'], 'user-supplied-key')
+    })
+    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', ['estratega'], 'user-supplied-key')
   })
 
   it('reflects paused from the subscribed doc', async () => {

@@ -6,9 +6,18 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import rate_limit
 from main import app
 
 client = TestClient(app)
+
+
+def setup_function(_):
+    # Same reasoning as test_coach.py/test_main.py: rate_limit.py's counter
+    # is process-wide, so it must be cleared between tests to avoid one test
+    # module's usage exhausting another's free-tier quota within the same
+    # pytest run.
+    rate_limit._requests.clear()
 
 
 @patch("main.call_agent", return_value="mocked briefing")

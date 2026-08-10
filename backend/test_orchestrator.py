@@ -2,9 +2,9 @@ import os
 
 os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8081"
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from orchestrator import run_board_session
+from orchestrator import call_agent_with_key, run_board_session
 from firestore_store import create_session, get_session, is_paused
 
 
@@ -114,3 +114,74 @@ def test_run_board_session_default_unpaused_never_sleeps(mock_call, mock_is_paus
     )
     mock_sleep.assert_not_called()
     assert mock_call.call_count == 2
+
+
+# --- Task 20: BYOK path (call_agent_with_key + run_board_session's api_key routing) ---
+
+
+@patch("orchestrator.genai.Client")
+def test_call_agent_with_key_uses_users_own_key_and_returns_text(mock_client_cls):
+    # Mocks google.genai.Client the same way ADK internals are mocked
+    # elsewhere in this file — no real network call, and confirms the exact
+    # shape verified against the installed SDK: Client(api_key=...),
+    # .models.generate_content(model=..., contents=..., config=...), and the
+    # response's `.text` property.
+    mock_response = MagicMock()
+    mock_response.text = "byok response"
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+    mock_client_cls.return_value = mock_client
+
+    result = call_agent_with_key("user-supplied-key", "system prompt", "user prompt")
+
+    assert result == "byok response"
+    mock_client_cls.assert_called_once_with(api_key="user-supplied-key")
+    _, kwargs = mock_client.models.generate_content.call_args
+    assert kwargs["contents"] == "user prompt"
+    assert kwargs["config"].system_instruction == "system prompt"
+
+
+@patch("orchestrator.call_agent_with_key", return_value="byok director response")
+@patch("orchestrator.call_agent")
+def test_run_board_session_with_api_key_routes_to_byok_path_only(
+    mock_call_agent, mock_call_agent_with_key
+):
+    # When api_key is supplied, every director + chairman call must go
+    # through call_agent_with_key — the default ADK/Vertex call_agent must
+    # never be invoked at all.
+    situation = "¿Contrato al primer empleado?"
+    session_id = create_session(situation, "strategic")
+    run_board_session(
+        session_id,
+        situation,
+        "strategic",
+        director_ids=["estratega", "financiero"],
+        api_key="user-supplied-key",
+    )
+    mock_call_agent.assert_not_called()
+    assert mock_call_agent_with_key.call_count == 3  # 2 directors + chairman
+    for call in mock_call_agent_with_key.call_args_list:
+        args, _ = call
+        assert args[0] == "user-supplied-key"
+    doc = get_session(session_id)
+    assert doc["verdict"] == "byok director response"
+    assert doc["status"] == "done"
+
+
+@patch("orchestrator.call_agent_with_key")
+@patch("orchestrator.call_agent", return_value="mocked director response")
+def test_run_board_session_default_api_key_none_stays_on_default_path(
+    mock_call_agent, mock_call_agent_with_key
+):
+    # Zero-regression protection: omitting api_key (the default) must never
+    # touch call_agent_with_key at all — byte-identical to pre-Task-20
+    # behavior, same discipline as every other optional param in this file.
+    situation = "¿Contrato al primer empleado?"
+    session_id = create_session(situation, "strategic")
+    run_board_session(
+        session_id, situation, "strategic", director_ids=["estratega"]
+    )
+    mock_call_agent_with_key.assert_not_called()
+    assert mock_call_agent.call_count == 2  # one director + chairman
+    doc = get_session(session_id)
+    assert doc["status"] == "done"

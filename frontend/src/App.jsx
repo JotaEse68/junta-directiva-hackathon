@@ -6,6 +6,7 @@ import DirectorModal from './components/DirectorModal.jsx'
 import DirectorsRoster from './components/DirectorsRoster.jsx'
 import DownloadBanner from './components/DownloadBanner.jsx'
 import ReportModal from './components/ReportModal.jsx'
+import SettingsModal from './components/SettingsModal.jsx'
 import VerdictPanel from './components/VerdictPanel.jsx'
 import { useBoard } from './hooks/useBoard.js'
 import { useChairmanChat } from './hooks/useChairmanChat.js'
@@ -16,6 +17,12 @@ import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n, MEETING_DESC_I18N } from './lib/i18n.js'
 
 const MAX_CHARS = 800
+
+// Task 20 (BYOK): localStorage key for the user's own Gemini API key, if
+// they've connected one — matches the original product's persistence
+// pattern (see SettingsModal.jsx). Never sent anywhere except straight to
+// our own backend, which forwards it to Gemini and doesn't store it.
+const API_KEY_STORAGE_KEY = 'junta_gemini_api_key'
 
 // Mapea el id de tipo de reunión (en español, usado internamente en lib/directors.js)
 // a la clave de traducción i18n correspondiente para su etiqueta.
@@ -54,6 +61,25 @@ function AppInner() {
   // "Nueva sesión" como para el estado idle antes del primer convene.
   const { turns, verdict, status, paused, convene, pause, resume } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
+
+  // BYOK (Task 20): the user's own Gemini key, if connected, persisted the same
+  // way the original product did (localStorage) — routes every AI-consuming call
+  // through the backend's BYOK path (call_agent_with_key) and bypasses the
+  // free-tier daily limit entirely. `sessionError` surfaces convene() failures
+  // (most notably a 429 from the free tier) instead of leaving the UI stuck on
+  // "starting" with no feedback.
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE_KEY) || '')
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sessionError, setSessionError] = useState(null)
+
+  const handleSaveApiKey = useCallback((key) => {
+    setApiKey(key)
+    if (key) {
+      localStorage.setItem(API_KEY_STORAGE_KEY, key)
+    } else {
+      localStorage.removeItem(API_KEY_STORAGE_KEY)
+    }
+  }, [])
 
   // Informe completo y chat de seguimiento con el Chairman (Task 15): ambos son
   // features restauradas del producto original, adaptadas a este backend vía el
@@ -102,6 +128,7 @@ function AppInner() {
 
   const handleConvene = useCallback(async () => {
     if (!situation.trim() || !isIdle || selectedIds.length === 0 || ctxProcessing) return
+    setSessionError(null)
     setHasStarted(true)
     const directors = orderForDebate(selectedIds, DIRECTORS)
     // El contexto adicional (Task 17) se pliega en `situation` aquí mismo,
@@ -112,8 +139,17 @@ function AppInner() {
     const fullSituation = hasContext
       ? `${situation.trim()}\n\n${buildContextBlock()}`
       : situation.trim()
-    await convene(fullSituation, meetingType, lang, directors.map(d => d.id))
-  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, ctxProcessing])
+    try {
+      await convene(fullSituation, meetingType, lang, directors.map(d => d.id), apiKey)
+    } catch (err) {
+      // Task 20: most commonly a 429 free-tier limit (err.message ===
+      // "RATE_LIMIT_EXCEEDED") — mapped through i18n below rather than shown
+      // raw. Reset to the initial form instead of leaving the UI stuck on
+      // "starting" with nothing happening.
+      setSessionError(err.message || 'unknown')
+      setHasStarted(false)
+    }
+  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, ctxProcessing, apiKey])
 
   const handleReset = () => {
     setHasStarted(false)
@@ -123,12 +159,12 @@ function AppInner() {
 
   const handleGenerateReport = useCallback(async () => {
     setReportOpen(true)
-    await generateReport({ situation, meetingType, turns, verdict, language: lang })
-  }, [situation, meetingType, turns, verdict, lang, generateReport])
+    await generateReport({ situation, meetingType, turns, verdict, language: lang, apiKey })
+  }, [situation, meetingType, turns, verdict, lang, generateReport, apiKey])
 
   const handleSendChairman = useCallback((text) => {
-    sendChairmanMessage(text, { situation, turns, verdict, language: lang })
-  }, [situation, turns, verdict, lang, sendChairmanMessage])
+    sendChairmanMessage(text, { situation, turns, verdict, language: lang, apiKey })
+  }, [situation, turns, verdict, lang, sendChairmanMessage, apiKey])
 
   // Extrae el voto de un director del texto generado
   const getDirectorVote = (dirId) => {
@@ -189,6 +225,15 @@ function AppInner() {
               ES
             </button>
           </div>
+          {/* Task 20: settings trigger — opens the free-tier/BYOK modal. Highlighted
+              when a key is connected so the user can see BYOK mode is active at a glance. */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title={t('settings.trigger')}
+            style={{ padding: '6px 10px', borderRadius: 'var(--r-sm)', border: `1px solid ${apiKey ? 'var(--blue-bd)' : 'var(--bd)'}`, background: apiKey ? 'var(--blue-dim)' : 'transparent', color: apiKey ? 'var(--blue)' : 'var(--t3)', fontSize: '13px' }}
+          >
+            ⚙️
+          </button>
         </div>
       </nav>
 
@@ -318,6 +363,20 @@ function AppInner() {
                 />
               </div>
 
+              {/* Task 20: shown when convene() fails — most commonly a 429 free-tier
+                  limit, mapped through i18n rather than a raw error dump, with a
+                  direct link into the settings modal so BYOK is one click away. */}
+              {sessionError && (
+                <div style={{ padding: '14px 18px', background: 'var(--red-dim)', border: '1px solid var(--red-bd)', borderRadius: 'var(--r-md)', color: 'var(--red)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <span>⚠️ {sessionError === 'RATE_LIMIT_EXCEEDED' ? t('errors.rateLimitExceeded') : t('errors.genericSessionError')}</span>
+                  {sessionError === 'RATE_LIMIT_EXCEEDED' && (
+                    <button onClick={() => setSettingsOpen(true)} style={{ padding: '7px 14px', borderRadius: 'var(--r-sm)', border: '1px solid var(--red-bd)', color: 'var(--red)', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {t('errors.openSettings')}
+                    </button>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={handleConvene}
                 disabled={!situation.trim() || selectedIds.length === 0 || ctxProcessing}
@@ -417,6 +476,14 @@ function AppInner() {
           loading={reportLoading}
           error={reportError}
           onClose={() => setReportOpen(false)}
+        />
+      )}
+
+      {settingsOpen && (
+        <SettingsModal
+          currentKey={apiKey}
+          onSave={handleSaveApiKey}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
     </div>
