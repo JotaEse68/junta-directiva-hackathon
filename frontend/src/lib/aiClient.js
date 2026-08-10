@@ -1,55 +1,29 @@
-// COMPETITION BUILD: Gemini-only via backend proxy
-// Production version (at github.com/JotaEse68/juntadirectiva) supports multiple providers (Claude, OpenAI, Gemini)
-// This build intentionally narrows to comply with contest rules.
+// COMPETITION BUILD: Gemini via backend proxy only.
+// Production version (at github.com/JotaEse68/juntadirectiva) supported multiple
+// providers client-side (Claude, OpenAI, Gemini) with a BYOK/apiKey flow and SSE
+// streaming from Vercel Edge Functions. This backend (FastAPI/Cloud Run) always
+// authenticates to Vertex AI server-side via the Cloud Run service account, so
+// there is no client-side API key, no provider branching, and `call_agent`
+// (backend/orchestrator.py) is synchronous/non-streaming — so `callCoach` mirrors
+// that instead of reimplementing SSE parsing for what is now a single blocking
+// HTTP call.
 
-// Gemini always uses backend proxy (/api/gemini) because it blocks CORS
-function buildRequest({ apiKey, system, userMsg, maxTokens }) {
-  const model = 'gemini-flash-latest'
-  return {
-    endpoint: '/api/gemini',
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+
+// Generic completion call to POST /coach (backend/main.py), which backs both the
+// full report (useReport.js) and the chairman follow-up chat (useChairmanChat.js).
+export async function callCoach({ system, userMsg, language = 'es' }) {
+  const res = await fetch(`${BACKEND_URL}/coach`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey, model, system, userPrompt: userMsg, maxTokens }),
-  }
-}
+    body: JSON.stringify({ system_prompt: system, user_prompt: userMsg, language }),
+  })
 
-// Extract text delta from Gemini SSE event
-function extractDelta(parsed) {
-  return parsed.candidates?.[0]?.content?.parts?.[0]?.text || ''
-}
-
-// Generic streaming call. No apiKey (free mode) always goes through /api/coach with backend-provided key
-export async function streamCompletion({ apiKey, system, userMsg, maxTokens, onChunk }) {
-  const req = apiKey
-    ? buildRequest({ apiKey, system, userMsg, maxTokens })
-    : { endpoint: '/api/coach', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ systemPrompt: system, userPrompt: userMsg, maxTokens }) }
-
-  const res = await fetch(req.endpoint, { method: 'POST', headers: req.headers, body: req.body })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || `Error ${res.status}`)
+    throw new Error(data.error || data.detail || `Error ${res.status}`)
   }
 
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let fullText = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    const lines = decoder.decode(value).split('\n')
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const data = line.slice(6).trim()
-      if (data === '[DONE]') continue
-      try {
-        const parsed = JSON.parse(data)
-        const delta = extractDelta(parsed)
-        if (delta) {
-          fullText += delta
-          onChunk?.(fullText)
-        }
-      } catch { /* skip */ }
-    }
-  }
-  return fullText
+  const data = await res.json()
+  return data.text
 }

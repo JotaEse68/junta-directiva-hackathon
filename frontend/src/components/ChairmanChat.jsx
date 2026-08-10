@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
+import { useI18n } from '../lib/i18n.js'
 
 export default function ChairmanChat({ messages, sending, error, onSend }) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
 
   const canSend = input.trim() && !sending
@@ -16,7 +18,7 @@ export default function ChairmanChat({ messages, sending, error, onSend }) {
       <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px' }}>💬</span>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--t1)' }}>Pregúntale al Chairman</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--t1)' }}>{t('chairman.title')}</p>
         </div>
       </div>
 
@@ -54,7 +56,7 @@ export default function ChairmanChat({ messages, sending, error, onSend }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && canSend) handleSend() }}
-            placeholder="Pregunta algo sobre el veredicto o el debate..."
+            placeholder={t('chairman.placeholder')}
             disabled={sending}
             style={{ flex: 1, padding: '11px 14px', background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', color: 'var(--t1)', fontSize: '13px', outline: 'none' }}
           />
@@ -63,7 +65,7 @@ export default function ChairmanChat({ messages, sending, error, onSend }) {
             disabled={!canSend}
             style={{ padding: '11px 18px', borderRadius: 'var(--r-sm)', border: 'none', background: canSend ? 'var(--blue)' : 'var(--bg3)', color: canSend ? 'var(--bg0)' : 'var(--t3)', fontSize: '13px', fontWeight: 700, cursor: canSend ? 'pointer' : 'not-allowed' }}
           >
-            {sending ? '...' : 'Enviar'}
+            {sending ? '...' : t('chairman.send')}
           </button>
         </div>
       </div>

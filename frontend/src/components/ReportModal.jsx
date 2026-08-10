@@ -1,4 +1,5 @@
 import React from 'react'
+import { useI18n } from '../lib/i18n.js'
 
 const KNOWN_HEADERS = [
   'RESUMEN AMPLIADO',
@@ -27,21 +28,21 @@ function parseSections(text) {
   return sections
 }
 
-function buildDownloadText(situation, verdict, report) {
+function buildDownloadText(t, situation, verdict, report) {
   const parts = [
-    'JUNTA DIRECTIVA AI — INFORME COMPLETO',
+    t('report.downloadHeading'),
     '='.repeat(40),
     '',
-    `SITUACIÓN: ${situation}`,
+    `${t('report.downloadSituation')}: ${situation}`,
     '',
-    'VEREDICTO RÁPIDO',
+    t('report.downloadQuickVerdict'),
     '-'.repeat(20),
     verdict || '',
     '',
     report.text,
   ]
   if (report.quickTakes?.length) {
-    parts.push('', 'OPINIONES EXPRÉS DE LOS DEMÁS DIRECTORES', '-'.repeat(20))
+    parts.push('', t('report.downloadExpressOpinions'), '-'.repeat(20))
     report.quickTakes.forEach(q => {
       parts.push(`${q.director.name} (${q.director.title}): ${q.text}`, '')
     })
@@ -50,8 +51,10 @@ function buildDownloadText(situation, verdict, report) {
 }
 
 export default function ReportModal({ situation, verdict, report, loading, error, onClose }) {
+  const { t } = useI18n()
+
   const handleDownload = () => {
-    const text = buildDownloadText(situation, verdict, report)
+    const text = buildDownloadText(t, situation, verdict, report)
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -70,7 +73,7 @@ export default function ReportModal({ situation, verdict, report, loading, error
         <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <p style={{ fontSize: '10px', color: 'var(--blue)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '2px', fontWeight: 500 }}>Junta Directiva AI</p>
-            <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--t1)' }}>📄 Informe completo</p>
+            <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--t1)' }}>{t('report.modalTitle')}</p>
           </div>
           <button onClick={onClose} style={{ fontSize: '18px', color: 'var(--t3)', padding: '4px 8px' }}>×</button>
         </div>
@@ -79,7 +82,7 @@ export default function ReportModal({ situation, verdict, report, loading, error
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <p style={{ fontSize: '13px', color: 'var(--blue)', marginBottom: '12px' }}>
-                Consultando a los directores que no debatieron en vivo y ampliando el análisis...
+                {t('report.loadingText')}
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
                 <span className="dot"></span><span className="dot"></span><span className="dot"></span>
@@ -111,7 +114,7 @@ export default function ReportModal({ situation, verdict, report, loading, error
               {report.quickTakes?.length > 0 && (
                 <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--bd)' }}>
                   <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--blue)', letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: '14px' }}>
-                    Opinión exprés de los demás directores
+                    {t('report.expressOpinionsLabel')}
                   </p>
                   {report.quickTakes.map(({ director, text }) => (
                     <div key={director.id} style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
@@ -132,9 +135,9 @@ export default function ReportModal({ situation, verdict, report, loading, error
 
         {report && !loading && (
           <div style={{ padding: '16px 28px', borderTop: '1px solid var(--bd)', display: 'flex', gap: '8px' }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '11px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t2)', fontSize: '13px' }}>Cerrar</button>
+            <button onClick={onClose} style={{ flex: 1, padding: '11px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t2)', fontSize: '13px' }}>{t('report.close')}</button>
             <button onClick={handleDownload} style={{ flex: 2, padding: '11px', borderRadius: 'var(--r-sm)', border: 'none', background: 'var(--blue)', color: 'var(--bg0)', fontSize: '13px', fontWeight: 700 }}>
-              ⬇️ Descargar informe
+              {t('report.download')}
             </button>
           </div>
         )}

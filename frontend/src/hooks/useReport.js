@@ -1,25 +1,33 @@
 import { useState, useCallback } from 'react'
 import { DIRECTORS } from '../lib/directors.js'
-import { streamCompletion } from '../lib/aiClient.js'
+import { callCoach } from '../lib/aiClient.js'
 
 // Opinión exprés (2-3 frases) de un director que no participó en el debate en vivo —
 // para que ningún miembro de la junta de 12 quede sin decir nada en el informe completo.
-async function quickTake({ director, situation, apiKey }) {
+// En el build actual el orquestador (backend/orchestrator.py) siempre corre los 12
+// directores, así que `missingDirectors` (más abajo) normalmente queda vacío y esto no
+// se ejecuta para nadie — se conserva porque es correcto e inofensivo, y queda listo para
+// cuando la Task 16 restaure la selección manual de directores y sí puedan quedar ausentes.
+async function quickTake({ director, situation, language }) {
   const userMsg = `SITUACIÓN: ${situation}
 
 Como ${director.name} (${director.title}), da tu opinión exprés en 2-3 frases desde tu especialidad. No es un análisis largo — solo tu primera reacción experta y directa, sin rodeos.`
-  return streamCompletion({ apiKey, system: director.systemPrompt, userMsg, maxTokens: 180 })
+  return callCoach({ system: director.systemPrompt, userMsg, language })
 }
 
-const REPORT_SYSTEM = `Eres el equipo editorial de Junta Directiva AI. A partir de un debate ya completado, produces el INFORME COMPLETO — un documento notablemente más profundo y útil que el veredicto gratuito ya entregado al usuario. No repitas el veredicto, amplíalo.
+// Adaptado del `REPORT_SYSTEM` original (juntadirectiva/src/hooks/useReport.js): se retira
+// todo el framing de "informe gratuito"/tier de pago (este build no tiene split free/paid,
+// es EL informe) y se ajusta el tono de cierre para que hable como el resto de prompts tras
+// la Task 14 — un equipo de asesores expertos, no un tribunal emitiendo un dictamen superior.
+const REPORT_SYSTEM = `Eres el equipo editorial de Junta Directiva AI. A partir de un debate ya completado, produces el INFORME COMPLETO: el documento de referencia que el consultante se lleva de esta sesión, más profundo y accionable que el veredicto ya recibido. No repitas el veredicto, amplíalo.
 
 Estructura obligatoria, con estos encabezados exactos en mayúsculas, cada uno en su propia línea:
 
 RESUMEN AMPLIADO
-Dos o tres párrafos que profundizan en el análisis más allá del veredicto rápido, conectando los puntos de vista de los directores que sí debatieron en vivo con las opiniones exprés de los que no.
+Dos o tres párrafos que profundizan en el análisis más allá del veredicto, conectando los puntos de vista de los directores que sí debatieron en vivo con las opiniones exprés de los que no.
 
 IDEAS ADICIONALES
-4 a 6 ideas concretas y accionables que NO aparecieron en el veredicto rápido.
+4 a 6 ideas concretas y accionables que NO aparecieron en el veredicto.
 
 RECURSOS Y HERRAMIENTAS RECOMENDADAS
 Nombra herramientas, plataformas, metodologías o tipos de recursos reales y conocidos, agrupados por categoría. No inventes URLs ni enlaces específicos — solo nombres reales de herramientas o categorías de búsqueda.
@@ -27,27 +35,28 @@ Nombra herramientas, plataformas, metodologías o tipos de recursos reales y con
 PLAN DE MEJORA DETALLADO
 6 a 8 pasos concretos y priorizados. Para cada uno indica el esfuerzo estimado (bajo/medio/alto) entre paréntesis.
 
-Sé denso en valor, cero relleno ni frases genéricas. Este informe debe sentirse claramente superior al veredicto gratuito.`
+Sé denso en valor, cero relleno ni frases genéricas. Escribe como un equipo de asesores expertos que quiere que el consultante ejecute con confianza, no como quien reparte un dictamen. Este informe debe sentirse valioso por sí mismo, no como el anticipo de algo mejor.`
 
 export function useReport() {
   const [report, setReport] = useState(null)       // { text, quickTakes: [{director,text}] }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const generateReport = useCallback(async ({ situation, meetingType, turns, verdict, apiKey }) => {
+  const generateReport = useCallback(async ({ situation, meetingType, turns, verdict, language }) => {
     setLoading(true)
     setError(null)
     setReport(null)
     try {
       // El orquestador (backend/orchestrator.py) corre siempre los 12 directores, así que
       // en la práctica "missingDirectors" queda vacío — se conserva por si algún día vuelve
-      // a existir un subconjunto (p.ej. un turn cuyo director_id no aparece en turns).
+      // a existir un subconjunto (p.ej. tras la Task 16, un turn cuyo director_id no
+      // aparece en `turns`).
       const activeIds = new Set(turns.map(t => t.director_id))
       const missingDirectors = DIRECTORS.filter(d => !activeIds.has(d.id))
 
       const quickResults = await Promise.all(missingDirectors.map(async (director) => {
         try {
-          const text = await quickTake({ director, situation, apiKey })
+          const text = await quickTake({ director, situation, language })
           return { director, text }
         } catch {
           return { director, text: null }
@@ -69,7 +78,9 @@ export function useReport() {
       const reportPrompt = `SITUACIÓN ORIGINAL:
 ${situation}
 
-VEREDICTO YA ENTREGADO AL USUARIO (gratuito, no lo repitas):
+TIPO DE REUNIÓN: ${meetingType}
+
+VEREDICTO YA ENTREGADO AL USUARIO (no lo repitas):
 ${verdict || '(sin veredicto disponible)'}
 
 DEBATE EN VIVO:
@@ -80,7 +91,7 @@ ${quickSummary || '(todos los directores participaron en vivo)'}
 
 Produce el informe completo siguiendo exactamente la estructura indicada.`
 
-      const text = await streamCompletion({ apiKey, system: REPORT_SYSTEM, userMsg: reportPrompt, maxTokens: 1500 })
+      const text = await callCoach({ system: REPORT_SYSTEM, userMsg: reportPrompt, language })
       setReport({ text, quickTakes })
     } catch (err) {
       setError(err.message || 'No se pudo generar el informe completo')

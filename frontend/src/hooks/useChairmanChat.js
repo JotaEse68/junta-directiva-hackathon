@@ -1,7 +1,11 @@
 import { useState, useCallback } from 'react'
-import { streamCompletion } from '../lib/aiClient.js'
+import { callCoach } from '../lib/aiClient.js'
 import { DIRECTORS } from '../lib/directors.js'
 
+// Adaptado de juntadirectiva/src/hooks/useChairmanChat.js: se retira por completo
+// `FREE_CHAT_LIMIT`/`freeMessagesUsed`/`hasKey`/`onOpenSettings` — este build no tiene
+// tope de mensajes gratuitos ni gating por API key (Vertex AI se autentica server-side),
+// así que el chat con el Chairman es simplemente ilimitado.
 function buildChairmanSystem({ situation, turns, verdict }) {
   const debateSummary = turns
     .map(t => {
@@ -22,7 +26,7 @@ ${debateSummary}
 TU VEREDICTO YA ENTREGADO:
 ${verdict}
 
-Responde las preguntas de seguimiento con el mismo tono directo y ejecutivo del veredicto. Puedes citar a directores específicos del debate cuando sea relevante. Sé conciso: 2-4 párrafos como máximo, salvo que el usuario pida explícitamente más detalle.`
+Responde las preguntas de seguimiento con el mismo tono directo, ejecutivo y cercano del veredicto: eres un asesor que quiere que el consultante acierte, no un juez repitiendo una sentencia. Puedes citar a directores específicos del debate cuando sea relevante. Sé conciso: 2-4 párrafos como máximo, salvo que el usuario pida explícitamente más detalle.`
 }
 
 export function useChairmanChat() {
@@ -30,7 +34,10 @@ export function useChairmanChat() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
 
-  const sendMessage = useCallback(async (text, sessionContext, { apiKey }) => {
+  // sessionContext: { situation, turns, verdict, language } — `language` decide si el
+  // backend (POST /coach) añade la directiva de responder en inglés, igual que en el
+  // resto de llamadas a call_agent (ver backend/orchestrator.py, LANGUAGE_DIRECTIVE).
+  const sendMessage = useCallback(async (text, sessionContext) => {
     const question = text.trim()
     if (!question) return
 
@@ -45,16 +52,7 @@ export function useChairmanChat() {
         ? `${history}\n\nUsuario: ${question}\n\nResponde como Roberto.`
         : `Usuario: ${question}\n\nResponde como Roberto.`
 
-      const reply = await streamCompletion({
-        apiKey, system, userMsg, maxTokens: 500,
-        onChunk: (partial) => {
-          setMessages(prev => {
-            const next = prev.slice()
-            next[next.length - 1] = { role: 'assistant', content: partial }
-            return next
-          })
-        },
-      })
+      const reply = await callCoach({ system, userMsg, language: sessionContext.language })
       setMessages(prev => {
         const next = prev.slice()
         next[next.length - 1] = { role: 'assistant', content: reply }

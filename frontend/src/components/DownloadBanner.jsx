@@ -1,6 +1,9 @@
 import React from 'react'
+import { useI18n } from '../lib/i18n.js'
 
 export default function DownloadBanner({ sessionData, loading, onGenerate }) {
+  const { t } = useI18n()
+
   return (
     <div style={{
       background: 'var(--bg2)',
@@ -15,10 +18,10 @@ export default function DownloadBanner({ sessionData, loading, onGenerate }) {
       <div style={{ flex: 1, minWidth: '200px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
           <span style={{ fontSize: '16px' }}>📄</span>
-          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--t1)' }}>Informe completo</p>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--t1)' }}>{t('report.bannerTitle')}</p>
         </div>
         <p style={{ fontSize: '12px', color: 'var(--t2)', lineHeight: 1.5 }}>
-          Va más allá del veredicto: opinión de los 12 directores (los {sessionData?.directorCount || 8} que debatieron + el resto en exprés), ideas adicionales, recursos recomendados y un plan de mejora detallado.
+          {t('report.bannerDesc').replace('{count}', sessionData?.directorCount || 12)}
         </p>
       </div>
 
@@ -36,7 +39,7 @@ export default function DownloadBanner({ sessionData, loading, onGenerate }) {
           whiteSpace: 'nowrap', flexShrink: 0,
         }}
       >
-        {loading ? 'Generando...' : '📄 Ver informe completo'}
+        {loading ? t('report.generating') : t('report.viewButton')}
       </button>
     </div>
   )

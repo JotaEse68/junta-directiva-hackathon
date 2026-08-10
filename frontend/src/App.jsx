@@ -1,9 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react'
+import ChairmanChat from './components/ChairmanChat.jsx'
 import DebateChat from './components/DebateChat.jsx'
 import DirectorModal from './components/DirectorModal.jsx'
 import DirectorsRoster from './components/DirectorsRoster.jsx'
+import DownloadBanner from './components/DownloadBanner.jsx'
+import ReportModal from './components/ReportModal.jsx'
 import VerdictPanel from './components/VerdictPanel.jsx'
 import { useBoard } from './hooks/useBoard.js'
+import { useChairmanChat } from './hooks/useChairmanChat.js'
+import { useReport } from './hooks/useReport.js'
 import { DIRECTORS, MEETING_TYPES } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n, MEETING_DESC_I18N } from './lib/i18n.js'
@@ -45,6 +50,14 @@ function AppInner() {
   const { turns, verdict, status, convene } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
 
+  // Informe completo y chat de seguimiento con el Chairman (Task 15): ambos son
+  // features restauradas del producto original, adaptadas a este backend vía el
+  // endpoint genérico POST /coach (backend/main.py). Sin selección de directores en
+  // este build, así que sessionContext siempre incluye los 12 turns.
+  const { report, loading: reportLoading, error: reportError, generateReport } = useReport()
+  const { messages: chairmanMessages, sending: chairmanSending, error: chairmanError, sendMessage: sendChairmanMessage } = useChairmanChat()
+  const [reportOpen, setReportOpen] = useState(false)
+
   // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
   // se deriva de `turns` en vez de tocar esa función, ya que solo se le pasan directores
   // que ya completaron su turno.
@@ -74,7 +87,17 @@ function AppInner() {
   const handleReset = () => {
     setHasStarted(false)
     setSituation('')
+    setReportOpen(false)
   }
+
+  const handleGenerateReport = useCallback(async () => {
+    setReportOpen(true)
+    await generateReport({ situation, meetingType, turns, verdict, language: lang })
+  }, [situation, meetingType, turns, verdict, lang, generateReport])
+
+  const handleSendChairman = useCallback((text) => {
+    sendChairmanMessage(text, { situation, turns, verdict, language: lang })
+  }, [situation, turns, verdict, lang, sendChairmanMessage])
 
   // Extrae el voto de un director del texto generado
   const getDirectorVote = (dirId) => {
@@ -267,6 +290,25 @@ function AppInner() {
             )}
 
             {isDone && (
+              <div style={{ marginBottom: '28px' }}>
+                <DownloadBanner
+                  sessionData={{ directorCount: doneCount }}
+                  loading={reportLoading}
+                  onGenerate={handleGenerateReport}
+                />
+              </div>
+            )}
+
+            {isDone && (
+              <ChairmanChat
+                messages={chairmanMessages}
+                sending={chairmanSending}
+                error={chairmanError}
+                onSend={handleSendChairman}
+              />
+            )}
+
+            {isDone && (
               <div style={{ textAlign: 'center', marginTop: '48px' }}>
                 <button onClick={handleReset} style={{ padding: '13px 32px', borderRadius: 'var(--r-md)', border: '1px solid var(--blue-bd)', background: 'var(--blue-dim)', color: 'var(--blue)', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
                   🏛️ {t('action.newSession')}
@@ -289,6 +331,17 @@ function AppInner() {
           director={selectedDirector}
           sessionVote={getDirectorVote(selectedDirector.id)}
           onClose={() => setSelectedDirector(null)}
+        />
+      )}
+
+      {reportOpen && (
+        <ReportModal
+          situation={situation}
+          verdict={verdict}
+          report={report}
+          loading={reportLoading}
+          error={reportError}
+          onClose={() => setReportOpen(false)}
         />
       )}
     </div>
