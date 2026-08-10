@@ -1,10 +1,23 @@
 from fastapi import BackgroundTasks, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from firestore_store import create_session, get_session
 from orchestrator import run_board_session
 
 app = FastAPI(title="Junta Directiva AI - Hackathon Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://junta-directiva-hackathon.web.app",
+        "https://junta-directiva-hackathon.firebaseapp.com",
+        "http://localhost:5173",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/health")
 def health():
