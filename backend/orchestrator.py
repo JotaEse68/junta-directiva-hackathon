@@ -9,6 +9,7 @@ back to the client.
 """
 
 import asyncio
+import time
 import uuid
 
 from google.adk.runners import InMemoryRunner
@@ -16,9 +17,29 @@ from google.genai import types
 
 from agents.directors import DIRECTORS, build_director_agent
 from agents.chairman import build_chairman_agent
-from firestore_store import append_turn, set_verdict, set_status
+from firestore_store import append_turn, set_verdict, set_status, is_paused
 
 _APP_NAME = "junta-directiva"
+
+# Poll interval for the pause loop, in seconds. Short enough that resuming
+# feels near-instant, long enough not to hammer Firestore with reads while a
+# session sits paused for a while.
+_PAUSE_POLL_INTERVAL_SECONDS = 2
+
+
+def wait_if_paused(session_id: str) -> None:
+    """Blocks between director turns while the session's `paused` flag is
+    true, re-checking every `_PAUSE_POLL_INTERVAL_SECONDS`. Never call this
+    from inside a single `call_agent` invocation — it must only run between
+    turns, so a pause can never cut off a response already in progress.
+
+    Known limitation (acceptable for a hackathon build, see Task 18 brief):
+    this wait is unbounded — there is no timeout/auto-cancel if a session is
+    left paused indefinitely. A production version would want a safety net
+    (e.g. auto-resume or auto-cancel after N minutes paused).
+    """
+    while is_paused(session_id):
+        time.sleep(_PAUSE_POLL_INTERVAL_SECONDS)
 
 
 def call_agent(agent, prompt: str) -> str:
@@ -94,11 +115,19 @@ def run_board_session(
 
     responses = []
     for director in directors_to_run:
+        # Blocks here, between turns only — checked once right at the start
+        # of each iteration (before the agent call starts), never mid-call,
+        # so pausing never cuts off content already being generated. Also
+        # covers the "paused instantly after creation" case since this is
+        # the very first thing that happens for the first director too.
+        wait_if_paused(session_id)
         agent = build_director_agent(director)
         text = call_agent(agent, director_prompt)
         append_turn(session_id, director["id"], text)
         responses.append((director, text))
 
+    # Same guarantee before the chairman's turn.
+    wait_if_paused(session_id)
     chairman = build_chairman_agent()
     summary_prompt = "\n\n".join(f"{d['name']}: {t}" for d, t in responses)
     if language == "en":

@@ -5,7 +5,7 @@ os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8081"
 from unittest.mock import patch
 
 from orchestrator import run_board_session
-from firestore_store import create_session, get_session
+from firestore_store import create_session, get_session, is_paused
 
 
 @patch("orchestrator.call_agent", return_value="mocked director response")
@@ -79,3 +79,38 @@ def test_run_board_session_none_director_ids_runs_all_twelve(mock_call):
     doc = get_session(session_id)
     assert len(doc["turns"]) == 12
     assert doc["status"] == "done"
+
+
+@patch("orchestrator.time.sleep", return_value=None)
+@patch("orchestrator.is_paused", side_effect=[True, False])
+@patch("orchestrator.call_agent", return_value="mocked director response")
+def test_run_board_session_blocks_on_pause_then_resumes(mock_call, mock_is_paused, mock_sleep):
+    # is_paused returns True once then False: the poll loop must actually
+    # loop (sleep once, re-check, see it's no longer paused) before letting
+    # call_agent run for the first director — not be a no-op.
+    situation = "¿Contrato al primer empleado?"
+    session_id = create_session(situation, "strategic")
+    run_board_session(
+        session_id, situation, "strategic", director_ids=["estratega"]
+    )
+    assert mock_is_paused.call_count >= 2
+    mock_sleep.assert_called_once()
+    assert mock_call.call_count == 2  # one director + chairman
+    doc = get_session(session_id)
+    assert doc["status"] == "done"
+
+
+@patch("orchestrator.time.sleep", return_value=None)
+@patch("orchestrator.is_paused", return_value=False)
+@patch("orchestrator.call_agent", return_value="mocked director response")
+def test_run_board_session_default_unpaused_never_sleeps(mock_call, mock_is_paused, mock_sleep):
+    # Zero-regression path: a session that's never paused must run straight
+    # through with no delay at all — is_paused is still consulted (cheap
+    # field read) but time.sleep must never be invoked.
+    situation = "¿Contrato al primer empleado?"
+    session_id = create_session(situation, "strategic")
+    run_board_session(
+        session_id, situation, "strategic", director_ids=["estratega"]
+    )
+    mock_sleep.assert_not_called()
+    assert mock_call.call_count == 2

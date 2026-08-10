@@ -52,7 +52,7 @@ function AppInner() {
   // account de Cloud Run). El hook tampoco expone un `reset`, así que "sesión iniciada"
   // se rastrea localmente: sirve tanto para mostrar la pantalla inicial de nuevo tras
   // "Nueva sesión" como para el estado idle antes del primer convene.
-  const { turns, verdict, status, convene } = useBoard()
+  const { turns, verdict, status, paused, convene, pause, resume } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
 
   // Informe completo y chat de seguimiento con el Chairman (Task 15): ambos son
@@ -161,8 +161,17 @@ function AppInner() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isRunning && (
             <span style={{ fontSize: '12px', color: 'var(--blue)', padding: '4px 12px', borderRadius: '20px', background: 'var(--blue-dim)', border: '1px solid var(--blue-bd)' }}>
-              {status === 'starting' ? t('nav.starting') : `${t('nav.debate')} · ${doneCount}/${totalCount}`}
+              {status === 'starting' ? t('nav.starting') : `${paused ? t('status.paused') : t('nav.debate')} · ${doneCount}/${totalCount}`}
             </span>
+          )}
+          {status === 'running' && (
+            <button
+              onClick={paused ? resume : pause}
+              title={paused ? t('action.resume') : t('action.pause')}
+              style={{ padding: '6px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t3)', fontSize: '13px' }}
+            >
+              {paused ? '▶️' : '⏸️'}
+            </button>
           )}
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
             <button
@@ -327,7 +336,7 @@ function AppInner() {
             <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: '11px', color: 'var(--blue)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 500 }}>
-                  {status === 'starting' ? t('status.starting') : isDone ? t('status.done') : `${t('status.running')} · ${doneCount}/${totalCount}`}
+                  {status === 'starting' ? t('status.starting') : isDone ? t('status.done') : `${paused ? t('status.paused') : t('status.running')} · ${doneCount}/${totalCount}`}
                 </p>
                 <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: 400, color: 'var(--t1)', lineHeight: 1.3, maxWidth: '580px', fontStyle: 'italic' }}>
                   "{situation.slice(0, 110)}{situation.length > 110 ? '…' : ''}"

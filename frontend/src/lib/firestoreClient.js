@@ -30,3 +30,17 @@ export function subscribeToSession(sessionId, onUpdate) {
   const ref = doc(db, 'sessions', sessionId)
   return onSnapshot(ref, (snap) => onUpdate(snap.data()))
 }
+
+// Pause/resume an in-progress debate (Task 18): the backend orchestrator has
+// no persistent connection back to the client, so these just flip the
+// `paused` field on the session doc — the background job polls it between
+// director turns (backend/orchestrator.py's wait_if_paused).
+export async function pauseSession(sessionId) {
+  const res = await fetch(`${BACKEND_URL}/sessions/${sessionId}/pause`, { method: 'POST' })
+  return res.json()
+}
+
+export async function resumeSession(sessionId) {
+  const res = await fetch(`${BACKEND_URL}/sessions/${sessionId}/resume`, { method: 'POST' })
+  return res.json()
+}

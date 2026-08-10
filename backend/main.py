@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from agents.coach import build_coach_agent
 from context_utils import SUMMARY_SYSTEM_PROMPT, extract_text_from_html
-from firestore_store import create_session, get_session
+from firestore_store import create_session, get_session, set_paused
 from orchestrator import LANGUAGE_DIRECTIVE, call_agent, run_board_session
 
 _CONTEXT_MAX_CHARS = 8000
@@ -57,6 +57,21 @@ def create_session_endpoint(req: SessionRequest, background_tasks: BackgroundTas
 @app.get("/sessions/{session_id}")
 def get_session_endpoint(session_id: str):
     return get_session(session_id)
+
+
+@app.post("/sessions/{session_id}/pause")
+def pause_session_endpoint(session_id: str):
+    """Sets the `paused` flag the background orchestrator polls between
+    director turns (see orchestrator.py's `wait_if_paused`) — never mid-turn,
+    so nothing already generated is ever lost or cut off."""
+    set_paused(session_id, True)
+    return {"paused": True}
+
+
+@app.post("/sessions/{session_id}/resume")
+def resume_session_endpoint(session_id: str):
+    set_paused(session_id, False)
+    return {"paused": False}
 
 
 class CoachRequest(BaseModel):
