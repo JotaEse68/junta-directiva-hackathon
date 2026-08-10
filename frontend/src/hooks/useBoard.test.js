@@ -22,6 +22,15 @@ describe('useBoard', () => {
     const { createSession } = await import('../lib/firestoreClient.js')
     const { result } = renderHook(() => useBoard())
     await act(async () => { await result.current.convene('situación de prueba', 'strategic', 'en') })
-    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en')
+    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', undefined)
+  })
+
+  it('forwards directorIds to createSession', async () => {
+    const { createSession } = await import('../lib/firestoreClient.js')
+    const { result } = renderHook(() => useBoard())
+    await act(async () => {
+      await result.current.convene('situación de prueba', 'strategic', 'en', ['estratega', 'financiero'])
+    })
+    expect(createSession).toHaveBeenCalledWith('situación de prueba', 'strategic', 'en', ['estratega', 'financiero'])
   })
 })

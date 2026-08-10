@@ -29,13 +29,21 @@ class SessionRequest(BaseModel):
     situation: str
     meeting_type: str
     language: str = "es"
+    director_ids: list[str] | None = None
 
 
 @app.post("/sessions")
 def create_session_endpoint(req: SessionRequest, background_tasks: BackgroundTasks):
-    session_id = create_session(req.situation, req.meeting_type, req.language)
+    session_id = create_session(
+        req.situation, req.meeting_type, req.language, req.director_ids
+    )
     background_tasks.add_task(
-        run_board_session, session_id, req.situation, req.meeting_type, req.language
+        run_board_session,
+        session_id,
+        req.situation,
+        req.meeting_type,
+        req.language,
+        req.director_ids,
     )
     return {"session_id": session_id}
 

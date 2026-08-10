@@ -5,12 +5,18 @@ from google.cloud import firestore
 _db = firestore.Client()
 _COLLECTION = "sessions"
 
-def create_session(situation: str, meeting_type: str, language: str = "es") -> str:
+def create_session(
+    situation: str,
+    meeting_type: str,
+    language: str = "es",
+    director_ids: list[str] | None = None,
+) -> str:
     session_id = str(uuid.uuid4())
     _db.collection(_COLLECTION).document(session_id).set({
         "situation": situation,
         "meeting_type": meeting_type,
         "language": language,
+        "director_ids": director_ids,
         "status": "running",
         "turns": [],
         "verdict": None,

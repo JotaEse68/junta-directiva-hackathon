@@ -46,3 +46,36 @@ def test_run_board_session_default_language_leaves_prompt_unchanged(mock_call):
     chairman_call = mock_call.call_args_list[-1]
     _, chairman_prompt = chairman_call.args
     assert LANGUAGE_DIRECTIVE not in chairman_prompt
+
+
+@patch("orchestrator.call_agent", return_value="mocked director response")
+def test_run_board_session_filters_by_director_ids(mock_call):
+    situation = "¿Contrato al primer empleado?"
+    session_id = create_session(situation, "strategic")
+    run_board_session(
+        session_id,
+        situation,
+        "strategic",
+        director_ids=["estratega", "financiero", "jottarina"],
+    )
+    doc = get_session(session_id)
+    # Only the requested subset ran — one call per director plus one for the chairman.
+    assert mock_call.call_count == 4
+    assert len(doc["turns"]) == 3
+    assert {t["director_id"] for t in doc["turns"]} == {"estratega", "financiero", "jottarina"}
+    # The chairman still synthesizes a verdict from whatever subset ran.
+    assert doc["verdict"] == "mocked director response"
+    assert doc["status"] == "done"
+
+
+@patch("orchestrator.call_agent", return_value="mocked director response")
+def test_run_board_session_none_director_ids_runs_all_twelve(mock_call):
+    # Protects the zero-regression path: omitting director_ids must behave
+    # identically to before (all 12, DIRECTORS' own order) — same discipline
+    # as Task 13 protected the language default.
+    situation = "¿Contrato al primer empleado?"
+    session_id = create_session(situation, "strategic")
+    run_board_session(session_id, situation, "strategic", director_ids=None)
+    doc = get_session(session_id)
+    assert len(doc["turns"]) == 12
+    assert doc["status"] == "done"

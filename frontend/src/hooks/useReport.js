@@ -4,10 +4,9 @@ import { callCoach } from '../lib/aiClient.js'
 
 // Opinión exprés (2-3 frases) de un director que no participó en el debate en vivo —
 // para que ningún miembro de la junta de 12 quede sin decir nada en el informe completo.
-// En el build actual el orquestador (backend/orchestrator.py) siempre corre los 12
-// directores, así que `missingDirectors` (más abajo) normalmente queda vacío y esto no
-// se ejecuta para nadie — se conserva porque es correcto e inofensivo, y queda listo para
-// cuando la Task 16 restaure la selección manual de directores y sí puedan quedar ausentes.
+// Desde la Task 16 el usuario puede elegir un subconjunto de directores para el debate,
+// así que `missingDirectors` (más abajo) puede ser no vacío: cualquier director cuyo id
+// no aparezca en `turns` recibe aquí su opinión exprés.
 async function quickTake({ director, situation, language }) {
   const userMsg = `SITUACIÓN: ${situation}
 
@@ -47,10 +46,9 @@ export function useReport() {
     setError(null)
     setReport(null)
     try {
-      // El orquestador (backend/orchestrator.py) corre siempre los 12 directores, así que
-      // en la práctica "missingDirectors" queda vacío — se conserva por si algún día vuelve
-      // a existir un subconjunto (p.ej. tras la Task 16, un turn cuyo director_id no
-      // aparece en `turns`).
+      // Desde la Task 16 el orquestador puede correr solo un subconjunto de directores
+      // (director_ids), así que `missingDirectors` puede no estar vacío: cualquier
+      // director cuyo id no aparece en `turns` no participó en vivo.
       const activeIds = new Set(turns.map(t => t.director_id))
       const missingDirectors = DIRECTORS.filter(d => !activeIds.has(d.id))
 

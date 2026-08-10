@@ -8,13 +8,13 @@ export function useBoard() {
 
   const unsubscribeRef = useRef(null)
 
-  const convene = useCallback(async (situation, meetingType, language) => {
+  const convene = useCallback(async (situation, meetingType, language, directorIds) => {
     unsubscribeRef.current?.()
     setTurns([])
     setVerdict(null)
     setStatus('starting')
 
-    const sessionId = await createSession(situation, meetingType, language)
+    const sessionId = await createSession(situation, meetingType, language, directorIds)
 
     unsubscribeRef.current = subscribeToSession(sessionId, (data) => {
       if (!data) return

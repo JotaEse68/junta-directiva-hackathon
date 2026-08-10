@@ -72,15 +72,28 @@ LANGUAGE_DIRECTIVE = "\n\nIMPORTANT: Write your entire response in English, rega
 
 
 def run_board_session(
-    session_id: str, situation: str, meeting_type: str, language: str = "es"
+    session_id: str,
+    situation: str,
+    meeting_type: str,
+    language: str = "es",
+    director_ids: list[str] | None = None,
 ) -> None:
     set_status(session_id, "running")
     director_prompt = situation
     if language == "en":
         director_prompt = situation + LANGUAGE_DIRECTIVE
 
+    # When director_ids is provided, only run that subset — filtered by membership
+    # against DIRECTORS' own list order (not the incoming list's order), so a
+    # malformed/reordered request can't change debate sequencing. When omitted
+    # (None, the default), behavior is unchanged: all 12, current order — this is
+    # the zero-regression path, same discipline as Task 13's language param.
+    directors_to_run = DIRECTORS
+    if director_ids is not None:
+        directors_to_run = [d for d in DIRECTORS if d["id"] in director_ids]
+
     responses = []
-    for director in DIRECTORS:
+    for director in directors_to_run:
         agent = build_director_agent(director)
         text = call_agent(agent, director_prompt)
         append_turn(session_id, director["id"], text)

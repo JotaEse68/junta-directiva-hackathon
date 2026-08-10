@@ -9,7 +9,7 @@ import VerdictPanel from './components/VerdictPanel.jsx'
 import { useBoard } from './hooks/useBoard.js'
 import { useChairmanChat } from './hooks/useChairmanChat.js'
 import { useReport } from './hooks/useReport.js'
-import { DIRECTORS, MEETING_TYPES } from './lib/directors.js'
+import { DIRECTORS, MEETING_TYPES, selectDirectorsForMeeting, orderForDebate } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n, MEETING_DESC_I18N } from './lib/i18n.js'
 
@@ -40,13 +40,16 @@ function AppInner() {
   const { lang, setLang, t } = useI18n()
   const [situation, setSituation]   = useState('')
   const [meetingType, setMeetingType] = useState('decision')
+  const [selectedIds, setSelectedIds] = useState(() => selectDirectorsForMeeting('decision', DIRECTORS).map(d => d.id))
   const [selectedDirector, setSelectedDirector] = useState(null)
 
-  // El backend (backend/orchestrator.py) siempre convoca a los 12 directores en su orden
-  // fijo — ya no hay selección de directores ni API key de cliente (Vertex AI se autentica
-  // server-side vía la service account de Cloud Run). El hook tampoco expone un `reset`,
-  // así que "sesión iniciada" se rastrea localmente: sirve tanto para mostrar la pantalla
-  // inicial de nuevo tras "Nueva sesión" como para el estado idle antes del primer convene.
+  // El backend (backend/orchestrator.py) acepta un `director_ids` opcional para filtrar
+  // qué directores participan (Task 16) — el frontend elige un subconjunto sensato por
+  // defecto según el tipo de reunión (selectDirectorsForMeeting) y permite ajustarlo a
+  // mano. No hay API key de cliente (Vertex AI se autentica server-side vía la service
+  // account de Cloud Run). El hook tampoco expone un `reset`, así que "sesión iniciada"
+  // se rastrea localmente: sirve tanto para mostrar la pantalla inicial de nuevo tras
+  // "Nueva sesión" como para el estado idle antes del primer convene.
   const { turns, verdict, status, convene } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
 
@@ -69,6 +72,11 @@ function AppInner() {
 
   const handleMeetingTypeChange = (id) => {
     setMeetingType(id)
+    setSelectedIds(selectDirectorsForMeeting(id, DIRECTORS).map(d => d.id))
+  }
+
+  const toggleDirector = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   const isIdle    = !hasStarted
@@ -76,13 +84,16 @@ function AppInner() {
   const isDone    = hasStarted && status === 'done'
 
   const doneCount  = turns.length
-  const totalCount = DIRECTORS.length
+  // Reflects the director count for the current/last convened session — selectedIds
+  // doesn't reset on "Nueva sesión" (handleReset), only when the meeting type changes.
+  const totalCount = selectedIds.length
 
   const handleConvene = useCallback(async () => {
-    if (!situation.trim() || !isIdle) return
+    if (!situation.trim() || !isIdle || selectedIds.length === 0) return
     setHasStarted(true)
-    await convene(situation.trim(), meetingType, lang)
-  }, [situation, meetingType, isIdle, convene, lang])
+    const directors = orderForDebate(selectedIds, DIRECTORS)
+    await convene(situation.trim(), meetingType, lang, directors.map(d => d.id))
+  }, [situation, meetingType, selectedIds, isIdle, convene, lang])
 
   const handleReset = () => {
     setHasStarted(false)
@@ -170,14 +181,15 @@ function AppInner() {
               </p>
             </div>
 
-            {/* El elenco — informativo: los 12 directores siempre participan (el orquestador
-                del backend corre la lista completa en orden fijo, no hay selección). */}
+            {/* El elenco — pills seleccionables: quién participa en esta sesión (Task 16:
+                selección de directores con defaults inteligentes por tipo de reunión). */}
             <div className="fade-up" style={{ marginBottom: '48px', animationDelay: '.08s' }}>
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '14px', textAlign: 'center', fontWeight: 500 }}>
-                {t('board.yourBoard')} · {DIRECTORS.length} {t('board.directorsCount')}
+                {t('board.chooseParticipants')} · {selectedIds.length} {t('board.ofDirectors').replace('{total}', DIRECTORS.length)}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                 {DIRECTORS.map(d => {
+                  const isOn = selectedIds.includes(d.id)
                   const isJottarina = d.id === 'jottarina'
                   const activeBorder = isJottarina ? 'var(--red-bd)' : 'var(--blue-bd)'
                   const activeColor  = isJottarina ? 'var(--red)' : 'var(--blue)'
@@ -185,14 +197,15 @@ function AppInner() {
                   return (
                     <button
                       key={d.id}
-                      onClick={() => setSelectedDirector(d)}
-                      title={t('roster.viewProfile').replace('{name}', d.name)}
+                      onClick={() => toggleDirector(d.id)}
+                      title={(isOn ? t('board.removeDirector') : t('board.includeDirector')).replace('{name}', d.name)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '7px',
                         padding: '7px 14px', borderRadius: '24px',
-                        border: `1px solid ${activeBorder}`,
-                        background: activeBg,
-                        color: activeColor,
+                        border: `1px solid ${isOn ? activeBorder : 'var(--bd)'}`,
+                        background: isOn ? activeBg : 'rgba(255,255,255,0.03)',
+                        color: isOn ? activeColor : 'var(--t3)',
+                        opacity: isOn ? 1 : 0.55,
                         cursor: 'pointer', fontSize: '12px', fontWeight: 500,
                         transition: 'all .15s',
                       }}
@@ -200,13 +213,20 @@ function AppInner() {
                       <span>{d.emoji}</span>
                       <span>{d.name}</span>
                       <span style={{ fontWeight: 400, opacity: .6, fontSize: '11px' }}>· {d.title.split(' ').slice(-1)[0]}</span>
+                      {!isOn && <span style={{ fontSize: '11px' }}>✕</span>}
                     </button>
                   )
                 })}
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--t3)', textAlign: 'center', marginTop: '10px' }}>
-                {t('board.sequentialNote')}
-              </p>
+              {selectedIds.length > 8 ? (
+                <p style={{ fontSize: '11px', color: 'var(--t3)', textAlign: 'center', marginTop: '10px' }}>
+                  {t('board.longDebateWarning').replace('{count}', selectedIds.length)}
+                </p>
+              ) : (
+                <p style={{ fontSize: '11px', color: 'var(--t3)', textAlign: 'center', marginTop: '10px' }}>
+                  {t('board.sequentialNote')}
+                </p>
+              )}
             </div>
 
             {/* Formulario */}
@@ -245,10 +265,10 @@ function AppInner() {
 
               <button
                 onClick={handleConvene}
-                disabled={!situation.trim()}
-                style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: situation.trim() ? 'var(--blue)' : 'var(--bg3)', color: situation.trim() ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: situation.trim() ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
+                disabled={!situation.trim() || selectedIds.length === 0}
+                style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: (situation.trim() && selectedIds.length > 0) ? 'var(--blue)' : 'var(--bg3)', color: (situation.trim() && selectedIds.length > 0) ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: (situation.trim() && selectedIds.length > 0) ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
               >
-                🏛️ {t('action.convene')}
+                {selectedIds.length === 0 ? t('form.chooseAtLeastOne') : `🏛️ ${t('action.convene')}`}
               </button>
             </div>
           </>
