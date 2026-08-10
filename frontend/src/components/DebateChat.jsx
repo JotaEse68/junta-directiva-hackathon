@@ -1,6 +1,7 @@
 import React from 'react'
 import { classifyVote } from '../lib/consensus.js'
 import { DIRECTORS } from '../lib/directors.js'
+import { useI18n } from '../lib/i18n.js'
 
 const VOTE_BADGE = {
   favor:  { icon: '✓', label: 'A favor' },
@@ -56,9 +57,14 @@ function Bubble({ director, text, onClick }) {
 // Firestore (backend/orchestrator.py corre siempre los 12 directores en orden fijo).
 // Los metadatos de presentación (nombre, emoji, colores...) se resuelven contra
 // lib/directors.js por director_id — el turn en sí solo trae id + texto.
-export default function DebateChat({ turns, onClickDirector }) {
-  const doneIds = new Set(turns.map(t => t.director_id))
+export default function DebateChat({ turns, onClickDirector, paused }) {
+  const { t } = useI18n()
+  const doneIds = new Set(turns.map(turn => turn.director_id))
   const pending = DIRECTORS.filter(d => !doneIds.has(d.id))
+  // The backend always processes directors sequentially, in DIRECTORS order (filtered
+  // by selection) — so the first still-pending director is the one being generated
+  // right now, and the rest are genuinely just waiting their turn.
+  const [active, ...stillQueued] = pending
 
   return (
     <div>
@@ -70,10 +76,39 @@ export default function DebateChat({ turns, onClickDirector }) {
         )
       })}
 
-      {pending.length > 0 && (
+      {active && (
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
+          <span
+            title={active.name}
+            style={{
+              width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+              opacity: paused ? .5 : 1,
+              background: active.colorDim, border: `1px solid ${active.colorBorder}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
+              animation: paused ? 'none' : 'pulse 1.6s ease infinite',
+            }}
+          >
+            {active.emoji}
+          </span>
+          <span style={{ fontSize: '12px', color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {paused ? (
+              `⏸️ ${t('status.paused')}`
+            ) : (
+              <>
+                {t('debate.isAnalyzing').replace('{name}', active.name)}
+                <span style={{ display: 'inline-flex', gap: '3px' }}>
+                  <span className="dot"></span><span className="dot"></span><span className="dot"></span>
+                </span>
+              </>
+            )}
+          </span>
+        </div>
+      )}
+
+      {stillQueued.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '8px 0' }}>
-          <span style={{ fontSize: '11px', color: 'var(--t3)' }}>En cola:</span>
-          {pending.map(d => (
+          <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{t('debate.queue')}</span>
+          {stillQueued.map(d => (
             <span
               key={d.id}
               title={d.name}

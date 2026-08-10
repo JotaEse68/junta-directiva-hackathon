@@ -413,7 +413,7 @@ function AppInner() {
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '18px', fontWeight: 500 }}>
                 {t('board.conversationLabel')}
               </p>
-              <DebateChat turns={turns} onClickDirector={setSelectedDirector} />
+              <DebateChat turns={turns} onClickDirector={setSelectedDirector} paused={paused} />
             </div>
 
             {/* Veredicto — la conclusión, al final de la conversación */}
