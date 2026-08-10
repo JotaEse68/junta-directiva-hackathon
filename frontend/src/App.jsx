@@ -14,11 +14,34 @@ import { useChairmanChat } from './hooks/useChairmanChat.js'
 import ContextPanel from './components/ContextPanel.jsx'
 import { DIRECTORS, MEETING_TYPES, selectDirectorsForMeeting, orderForDebate } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
+import { I18nProvider, useI18n } from './lib/i18n.js'
 
 const STORAGE_KEY = 'junta_api_key'
 const MAX_CHARS = 800
 
+// Mapea el id de tipo de reunión (en español, usado internamente en lib/directors.js)
+// a la clave de traducción i18n correspondiente para su etiqueta.
+const MEETING_TYPE_KEYS = {
+  decision: 'meeting.strategic',
+  problema: 'meeting.problem',
+  oportunidad: 'meeting.opportunity',
+  crisis: 'meeting.crisis',
+  proyecto: 'meeting.analyze',
+  postmortem: 'meeting.postmortem',
+  negociacion: 'meeting.negotiation',
+  pitch: 'meeting.pitch',
+}
+
 export default function App() {
+  return (
+    <I18nProvider>
+      <AppInner />
+    </I18nProvider>
+  )
+}
+
+function AppInner() {
+  const { lang, setLang, t } = useI18n()
   const [situation, setSituation]   = useState('')
   const [meetingType, setMeetingType] = useState('decision')
   const [selectedIds, setSelectedIds] = useState(() => selectDirectorsForMeeting('decision', DIRECTORS).map(d => d.id))
@@ -119,6 +142,22 @@ export default function App() {
             {apiKey ? '🔵 Gemini' : '🌐 3/hora'}
           </span>
           <button onClick={() => setShowSettings(true)} style={{ padding: '6px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t3)', fontSize: '13px' }}>⚙️</button>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--bd)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+            <button
+              onClick={() => setLang('en')}
+              title="English"
+              style={{ padding: '6px 9px', fontSize: '11px', fontWeight: 600, border: 'none', background: lang === 'en' ? 'var(--blue-dim)' : 'transparent', color: lang === 'en' ? 'var(--blue)' : 'var(--t3)' }}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLang('es')}
+              title="Español"
+              style={{ padding: '6px 9px', fontSize: '11px', fontWeight: 600, border: 'none', background: lang === 'es' ? 'var(--blue-dim)' : 'transparent', color: lang === 'es' ? 'var(--blue)' : 'var(--t3)' }}
+            >
+              ES
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -133,10 +172,10 @@ export default function App() {
                 Tu junta directiva · 12 expertos
               </p>
               <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(34px, 5vw, 58px)', fontWeight: 400, lineHeight: 1.1, marginBottom: '18px', color: 'var(--t1)' }}>
-                Antes de decidir,<br /><em style={{ color: 'var(--blue)' }}>convoca la junta.</em>
+                {t('board.title')}
               </h1>
               <p style={{ fontSize: '16px', color: 'var(--t2)', maxWidth: '480px', margin: '0 auto', lineHeight: 1.7 }}>
-                12 directores especializados debaten tu situación entre sí — se escuchan, se rebaten — y emiten un veredicto ejecutivo con próximos pasos.
+                {t('board.subtitle')}
               </p>
             </div>
 
@@ -192,7 +231,7 @@ export default function App() {
                     <button key={mt.id} onClick={() => handleMeetingTypeChange(mt.id)}
                       style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', textAlign: 'left', border: `1px solid ${meetingType === mt.id ? 'var(--blue-bd)' : 'var(--bd)'}`, background: meetingType === mt.id ? 'var(--blue-dim)' : 'var(--bg3)', transition: 'all .2s' }}>
                       <div style={{ fontSize: '16px', marginBottom: '4px' }}>{mt.icon}</div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: meetingType === mt.id ? 'var(--blue)' : 'var(--t1)', marginBottom: '2px' }}>{mt.label}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: meetingType === mt.id ? 'var(--blue)' : 'var(--t1)', marginBottom: '2px' }}>{MEETING_TYPE_KEYS[mt.id] ? t(MEETING_TYPE_KEYS[mt.id]) : mt.label}</div>
                       <div style={{ fontSize: '11px', color: 'var(--t3)' }}>{mt.desc}</div>
                     </button>
                   ))}
@@ -247,7 +286,7 @@ export default function App() {
                 disabled={!situation.trim() || ctxProcessing || selectedIds.length === 0}
                 style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: (situation.trim() && selectedIds.length > 0) ? 'var(--blue)' : 'var(--bg3)', color: (situation.trim() && selectedIds.length > 0) ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: (situation.trim() && selectedIds.length > 0) ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
               >
-                {selectedIds.length === 0 ? '⚠️ Elige al menos un director' : '🏛️ Convocar la junta'}
+                {selectedIds.length === 0 ? '⚠️ Elige al menos un director' : `🏛️ ${t('action.convene')}`}
               </button>
 
               <p style={{ fontSize: '12px', color: 'var(--t3)', textAlign: 'center' }}>
