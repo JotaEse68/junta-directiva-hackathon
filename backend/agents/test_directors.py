@@ -39,3 +39,16 @@ def test_build_director_agent_sets_instruction_and_model():
 def test_build_chairman_agent_returns_agent():
     agent = build_chairman_agent()
     assert "Roberto Alcántara" in agent.description
+
+
+def test_build_chairman_agent_uses_verdict_prompt_not_director_bio():
+    # Regression guard: build_chairman_agent() must use the verdict-synthesis
+    # prompt from frontend/src/hooks/useBoard.js's callVerdict (verdictSystem),
+    # not the 'mentor' director's bio system_prompt from directors.js. A prior
+    # version wrongly routed through build_director_agent() on the mentor
+    # persona.
+    agent = build_chairman_agent()
+    assert "VEREDICTO FINAL" in agent.instruction
+    assert "PRÓXIMOS PASOS" in agent.instruction
+    # Make sure it's NOT the director-bio prompt (which never mentions these)
+    assert "35 años de experiencia" not in agent.instruction
