@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react'
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+
 // Extrae texto de PDF usando pdf.js desde CDN
 async function extractPDF(file) {
   const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs')
@@ -45,21 +47,22 @@ export function useContextBuilder() {
     setItems(prev => prev.filter(it => it.id !== id))
   }, [])
 
-  // Envía al servidor para resumir (Gemini-only)
-  const summarizeViaServer = async (type, payload, apiKey) => {
-    const body = { type, clientApiKey: apiKey || undefined, ...payload }
-    const res = await fetch('/api/context', {
+  // Envía al servidor para resumir (Gemini-only, sin BYOK en este build —
+  // ver backend/main.py POST /context, adaptado del original /api/context)
+  const summarizeViaServer = async (type, payload, language) => {
+    const body = { type, language: language || 'es', ...payload }
+    const res = await fetch(`${BACKEND_URL}/context`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+    if (!res.ok) throw new Error(data.error || data.detail || `Error ${res.status}`)
     return data.summary
   }
 
   // Procesa un archivo (PDF o Word)
-  const processFile = useCallback(async (file, apiKey) => {
+  const processFile = useCallback(async (file, language) => {
     const ext = file.name.split('.').pop().toLowerCase()
     if (!['pdf', 'doc', 'docx'].includes(ext)) {
       return { error: 'Solo se admiten PDF y Word (.doc, .docx)' }
@@ -87,7 +90,7 @@ export function useContextBuilder() {
       updateItem(id, { status: 'summarizing' })
 
       // 2. Resumir via servidor
-      const summary = await summarizeViaServer('extracted', { content: extracted }, apiKey)
+      const summary = await summarizeViaServer('extracted', { content: extracted }, language)
       updateItem(id, { status: 'done', summary })
 
     } catch (err) {
@@ -96,7 +99,7 @@ export function useContextBuilder() {
   }, [addItem, updateItem])
 
   // Procesa una URL
-  const processURL = useCallback(async (url, apiKey) => {
+  const processURL = useCallback(async (url, language) => {
     if (!url.trim()) return
     try { new URL(url) } catch {
       return { error: 'URL inválida' }
@@ -105,7 +108,7 @@ export function useContextBuilder() {
     const id = addItem({ type: 'url', name: url, status: 'fetching' })
 
     try {
-      const summary = await summarizeViaServer('url', { url }, apiKey)
+      const summary = await summarizeViaServer('url', { url }, language)
       updateItem(id, { status: 'done', summary })
     } catch (err) {
       updateItem(id, { status: 'error', error: err.message || 'No se pudo acceder a la URL' })
@@ -113,7 +116,7 @@ export function useContextBuilder() {
   }, [addItem, updateItem])
 
   // Añade una nota de texto libre
-  const addNote = useCallback(async (text, apiKey) => {
+  const addNote = useCallback(async (text, language) => {
     if (!text.trim()) return
     const id = addItem({ type: 'note', name: 'Nota', status: 'summarizing' })
     try {
@@ -121,7 +124,7 @@ export function useContextBuilder() {
       if (text.length < 600) {
         updateItem(id, { status: 'done', summary: text.trim() })
       } else {
-        const summary = await summarizeViaServer('note', { content: text }, apiKey)
+        const summary = await summarizeViaServer('note', { content: text }, language)
         updateItem(id, { status: 'done', summary })
       }
     } catch (err) {

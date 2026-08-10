@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import ChairmanChat from './components/ChairmanChat.jsx'
+import ContextPanel from './components/ContextPanel.jsx'
 import DebateChat from './components/DebateChat.jsx'
 import DirectorModal from './components/DirectorModal.jsx'
 import DirectorsRoster from './components/DirectorsRoster.jsx'
@@ -8,6 +9,7 @@ import ReportModal from './components/ReportModal.jsx'
 import VerdictPanel from './components/VerdictPanel.jsx'
 import { useBoard } from './hooks/useBoard.js'
 import { useChairmanChat } from './hooks/useChairmanChat.js'
+import { useContextBuilder } from './hooks/useContext.js'
 import { useReport } from './hooks/useReport.js'
 import { DIRECTORS, MEETING_TYPES, selectDirectorsForMeeting, orderForDebate } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
@@ -61,6 +63,16 @@ function AppInner() {
   const { messages: chairmanMessages, sending: chairmanSending, error: chairmanError, sendMessage: sendChairmanMessage } = useChairmanChat()
   const [reportOpen, setReportOpen] = useState(false)
 
+  // Contexto adicional (Task 17, feature restaurada): PDF/Word/URL/nota que se
+  // resume server-side (POST /context) y se pliega en el string `situation`
+  // antes de convocar — el backend nunca necesita saber que "contexto" existe
+  // como concepto propio, ver hooks/useContext.js `buildContextBlock()`.
+  const {
+    items: ctxItems, addNote: addCtxNote, processFile: processCtxFile,
+    processURL: processCtxURL, removeItem: removeCtxItem,
+    buildContextBlock, hasContext, isProcessing: ctxProcessing,
+  } = useContextBuilder()
+
   // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
   // se deriva de `turns` en vez de tocar esa función, ya que solo se le pasan directores
   // que ya completaron su turno.
@@ -89,11 +101,19 @@ function AppInner() {
   const totalCount = selectedIds.length
 
   const handleConvene = useCallback(async () => {
-    if (!situation.trim() || !isIdle || selectedIds.length === 0) return
+    if (!situation.trim() || !isIdle || selectedIds.length === 0 || ctxProcessing) return
     setHasStarted(true)
     const directors = orderForDebate(selectedIds, DIRECTORS)
-    await convene(situation.trim(), meetingType, lang, directors.map(d => d.id))
-  }, [situation, meetingType, selectedIds, isIdle, convene, lang])
+    // El contexto adicional (Task 17) se pliega en `situation` aquí mismo,
+    // en el cliente — el backend (orchestrator.py) sigue recibiendo un único
+    // string de situación, sin cambios en su pipeline. Se añade después del
+    // texto del usuario (no antes) para que la situación tal cual la escribió
+    // siga siendo lo primero que lee el modelo, con el contexto como anexo.
+    const fullSituation = hasContext
+      ? `${situation.trim()}\n\n${buildContextBlock()}`
+      : situation.trim()
+    await convene(fullSituation, meetingType, lang, directors.map(d => d.id))
+  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, ctxProcessing])
 
   const handleReset = () => {
     setHasStarted(false)
@@ -263,9 +283,35 @@ function AppInner() {
                 </div>
               </div>
 
+              {/* Contexto adicional (Task 17): PDF/Word, URL o nota que se resume
+                  y se pliega en `situation` al convocar — ver handleConvene. */}
+              <div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
+                  <p style={{ fontSize:'11px', color:'var(--t3)', letterSpacing:'.08em', textTransform:'uppercase', fontWeight:500 }}>
+                    {t('context.label')}
+                    <span style={{ marginLeft:'6px', fontSize:'10px', padding:'2px 7px', borderRadius:'4px', background:'var(--blue-dim)', color:'var(--blue)', border:'1px solid var(--blue-bd)' }}>
+                      {t('context.optional')}
+                    </span>
+                  </p>
+                  {hasContext && (
+                    <span style={{ fontSize:'11px', color:'var(--blue)' }}>
+                      {ctxItems.filter(i => i.status === 'done').length} {ctxItems.filter(i => i.status === 'done').length !== 1 ? t('context.sourcesReadyPlural') : t('context.sourcesReady')}
+                    </span>
+                  )}
+                </div>
+                <ContextPanel
+                  items={ctxItems}
+                  onProcessFile={(f) => processCtxFile(f, lang)}
+                  onProcessURL={(url) => processCtxURL(url, lang)}
+                  onAddNote={(text) => addCtxNote(text, lang)}
+                  onRemove={removeCtxItem}
+                  isProcessing={ctxProcessing}
+                />
+              </div>
+
               <button
                 onClick={handleConvene}
-                disabled={!situation.trim() || selectedIds.length === 0}
+                disabled={!situation.trim() || selectedIds.length === 0 || ctxProcessing}
                 style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: (situation.trim() && selectedIds.length > 0) ? 'var(--blue)' : 'var(--bg3)', color: (situation.trim() && selectedIds.length > 0) ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: (situation.trim() && selectedIds.length > 0) ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
               >
                 {selectedIds.length === 0 ? t('form.chooseAtLeastOne') : `🏛️ ${t('action.convene')}`}
