@@ -3,22 +3,18 @@
 NOTE (fix round): the first version of this file built the chairman agent by
 routing through `build_director_agent()` on the 'mentor' persona (Roberto
 Alcántara's director-bio system_prompt from directors.js). That was wrong —
-the actual chairman/synthesis prompt is a separate, distinct prompt used only
-for the closing synthesis. It originally lived in
-`frontend/src/hooks/useBoard.js` inside `callVerdict` (the `verdictSystem`
-local) and was transcribed verbatim into `CHAIRMAN_SYSTEM_PROMPT` below — it
-is not a director bio, it's an instruction to synthesize the whole debate
-(consensus points, main disagreement, recommended path, next steps).
+`CHAIRMAN_SYSTEM_PROMPT` below is a separate, dedicated prompt for the
+closing synthesis; it is not a director bio, it's an instruction to
+synthesize the whole debate (consensus points, main disagreement, recommended
+path, next steps).
 
-NOTE (Task 14 — product quality upgrade): the original prompt closed with a
+NOTE (Task 14 — product quality upgrade): the prompt used to close with a
 "VEREDICTO FINAL: proceder / proceder con condiciones / no proceder" —
 courtroom-verdict framing the repo owner explicitly flagged as feeling like a
-tribunal. `CHAIRMAN_SYSTEM_PROMPT` below reframes step 3 as presenting the
-real path(s) the board converged on (or diverged on) and Roberto's call on
-which to take and why — guidance, not a ruling — while keeping the
-prioritized next-steps close. This file has now diverged from
-`frontend/src/hooks/useBoard.js`'s `verdictSystem` (out of this task's scope
-per the Task 14 brief); they are no longer verbatim copies of each other.
+tribunal. `CHAIRMAN_SYSTEM_PROMPT` below reframes step 3 as "EL CAMINO A
+SEGUIR": presenting the real path(s) the board converged on (or diverged on)
+and Roberto's call on which to take and why — guidance, not a ruling — while
+keeping the prioritized "3 PRÓXIMOS PASOS" close unchanged.
 """
 
 from google.adk import Agent
@@ -37,15 +33,15 @@ Habla como alguien que ya ha visto esto muchas veces y quiere que el consultante
 def build_chairman_agent() -> Agent:
     """Build the ADK Agent that plays the Chairman role in the board.
 
-    Uses the verdict-synthesis prompt (CHAIRMAN_SYSTEM_PROMPT) directly —
-    NOT the 'mentor' director's bio system_prompt. Follows the same
-    identifier-safe name / free-text description convention used for
+    Uses the dedicated debate-synthesis prompt (CHAIRMAN_SYSTEM_PROMPT)
+    directly — NOT the 'mentor' director's bio system_prompt. Follows the
+    same identifier-safe name / free-text description convention used for
     directors in `build_director_agent` (see agents/directors.py docstring
     for why `Agent.name` can't hold "Roberto Alcántara" verbatim).
     """
     return Agent(
         name="chairman",
         model=GEMINI_MODEL,
-        description="Roberto Alcántara — Chairman (veredicto final de la junta)",
+        description="Roberto Alcántara — Chairman (guía la síntesis final de la junta)",
         instruction=CHAIRMAN_SYSTEM_PROMPT,
     )

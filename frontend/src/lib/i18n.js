@@ -151,7 +151,7 @@ export const DIRECTOR_I18N = {
     financiero: {
       tags: ['Números reales', 'ROI', 'Cash flow', 'Riesgo financiero'],
       personality: 'Directo con los números. No le interesan las ideas bonitas que no cierran en Excel.',
-      contribution: 'Traduce cada decisión a números reales: cash flow, ROI, punto de equilibrio. Señala el riesgo financiero invisible y vota con condiciones concretas.',
+      contribution: 'Traduce cada decisión a números reales: cash flow, ROI, punto de equilibrio. Señala el riesgo financiero invisible y recomienda con cifras concretas.',
     },
     marketing: {
       tags: ['Marca', 'Audiencia', 'Posicionamiento', 'Growth'],
