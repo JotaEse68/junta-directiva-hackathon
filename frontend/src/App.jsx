@@ -216,30 +216,6 @@ function AppInner() {
         {/* ── PANTALLA INICIAL ── */}
         {isIdle && (
           <>
-            {/* El resumen abre la página como en la versión de producto, pero deja
-                explícito que toda la experiencia del hackathon está disponible
-                gratuitamente: no introduce un pago ni un flujo alternativo. */}
-            <section className="board-overview fade-up" aria-labelledby="overview-title">
-              <div className="board-overview__intro">
-                <p className="eyebrow">{t('overview.kicker')}</p>
-                <h2 id="overview-title">{t('overview.title')}</h2>
-              </div>
-              <ol className="board-overview__steps">
-                <li>
-                  <span>01</span>
-                  <div><strong>{t('overview.stepOne')}</strong><p>{t('overview.stepOneDesc')}</p></div>
-                </li>
-                <li>
-                  <span>02</span>
-                  <div><strong>{t('overview.stepTwo')}</strong><p>{t('overview.stepTwoDesc')}</p></div>
-                </li>
-                <li>
-                  <span>03</span>
-                  <div><strong>{t('overview.stepThree')}</strong><p>{t('overview.stepThreeDesc')}</p></div>
-                </li>
-              </ol>
-            </section>
-
             {/* Hero */}
             <div className="board-hero fade-up" style={{ marginBottom: '52px', animationDelay: '.06s' }}>
               <p style={{ fontSize: '11px', color: 'var(--blue)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 500 }}>
@@ -383,6 +359,27 @@ function AppInner() {
                 {selectedIds.length === 0 ? t('form.chooseAtLeastOne') : `🏛️ ${t('action.convene')}`}
               </button>
             </div>
+
+            <section className="board-overview fade-up" aria-labelledby="overview-title" style={{ animationDelay: '.18s' }}>
+              <div className="board-overview__intro">
+                <p className="eyebrow">{t('overview.kicker')}</p>
+                <h2 id="overview-title">{t('overview.title')}</h2>
+              </div>
+              <ol className="board-overview__steps">
+                <li>
+                  <span>01</span>
+                  <div><strong>{t('overview.stepOne')}</strong><p>{t('overview.stepOneDesc')}</p></div>
+                </li>
+                <li>
+                  <span>02</span>
+                  <div><strong>{t('overview.stepTwo')}</strong><p>{t('overview.stepTwoDesc')}</p></div>
+                </li>
+                <li>
+                  <span>03</span>
+                  <div><strong>{t('overview.stepThree')}</strong><p>{t('overview.stepThreeDesc')}</p></div>
+                </li>
+              </ol>
+            </section>
           </>
         )}
 
