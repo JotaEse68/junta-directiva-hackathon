@@ -35,7 +35,18 @@ export async function createSession(situation, meetingType, language, directorId
 
 export function subscribeToSession(sessionId, onUpdate) {
   const ref = doc(db, 'sessions', sessionId)
-  return onSnapshot(ref, (snap) => onUpdate(snap.data()))
+  return onSnapshot(ref, (snap) => onUpdate(snap.data()), (error) => onUpdate(null, error))
+}
+
+export async function getSession(sessionId) {
+  const res = await fetch(`${BACKEND_URL}/sessions/${sessionId}`)
+  if (!res.ok) throw new Error(res.status === 404 ? 'Sesión no disponible' : `Error ${res.status}`)
+  return res.json()
+}
+
+export async function deleteSession(sessionId) {
+  const res = await fetch(`${BACKEND_URL}/sessions/${sessionId}`, { method: 'DELETE' })
+  if (!res.ok && res.status !== 404) throw new Error(`Error ${res.status}`)
 }
 
 // Pause/resume an in-progress debate (Task 18): the backend orchestrator has

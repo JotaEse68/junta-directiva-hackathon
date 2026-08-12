@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from google.cloud import firestore
 from google.cloud.firestore_v1.field_path import FieldPath
 
@@ -32,12 +32,26 @@ def create_session(
         "phase": "parallel_analysis",
         "director_progress": {director_id: "waiting" for director_id in initial_directors},
         "created_at": datetime.now(timezone.utc).isoformat(),
+        # Firestore TTL can use this field when configured in the production
+        # project. The API also refuses expired sessions, so the product never
+        # resurfaces an old decision if TTL cleanup runs later.
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
     })
     return session_id
 
 def get_session(session_id: str) -> dict:
     doc = _db.collection(_COLLECTION).document(session_id).get()
-    return doc.to_dict()
+    if not doc.exists:
+        return None
+    data = doc.to_dict()
+    expires_at = data.get("expires_at")
+    if expires_at and datetime.fromisoformat(expires_at) <= datetime.now(timezone.utc):
+        doc.reference.delete()
+        return None
+    return data
+
+def delete_session(session_id: str) -> None:
+    _db.collection(_COLLECTION).document(session_id).delete()
 
 def append_turn(session_id: str, director_id: str, text: str, kind: str = "analysis") -> None:
     ref = _db.collection(_COLLECTION).document(session_id)

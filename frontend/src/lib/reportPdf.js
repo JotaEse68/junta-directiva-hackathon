@@ -1,5 +1,3 @@
-import { jsPDF } from 'jspdf'
-
 const NAVY = [8, 20, 45]
 const INK = [25, 42, 70]
 const BLUE = [55, 118, 255]
@@ -32,7 +30,8 @@ function splitSections(text) {
   return sections
 }
 
-export function createExecutiveReportPdf({ situation, verdict, report, language = 'es' }) {
+export async function createExecutiveReportPdf({ situation, verdict, report, language = 'es' }) {
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -179,13 +178,13 @@ export function createExecutiveReportPdf({ situation, verdict, report, language 
   return doc
 }
 
-export function downloadExecutiveReportPdf(data) {
-  const doc = createExecutiveReportPdf(data)
+export async function downloadExecutiveReportPdf(data) {
+  const doc = await createExecutiveReportPdf(data)
   doc.save(`junta-directiva-informe-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
 
-export function downloadChairmanReplyPdf({ situation, reply, language = 'es' }) {
-  const doc = createExecutiveReportPdf({
+export async function downloadChairmanReplyPdf({ situation, reply, language = 'es' }) {
+  const doc = await createExecutiveReportPdf({
     situation,
     verdict: reply,
     report: { text: `ACCIONES PRIORITARIAS\n${reply}`, quickTakes: [] },

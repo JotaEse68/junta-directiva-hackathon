@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import ChairmanChat from './components/ChairmanChat.jsx'
 import ContextPanel from './components/ContextPanel.jsx'
 import DebateChat from './components/DebateChat.jsx'
@@ -55,10 +55,19 @@ function AppInner() {
   // account de Cloud Run). El hook tampoco expone un `reset`, así que "sesión iniciada"
   // se rastrea localmente: sirve tanto para mostrar la pantalla inicial de nuevo tras
   // "Nueva sesión" como para el estado idle antes del primer convene.
-  const { turns, verdict, status, paused, progress, convene, pause, resume } = useBoard()
+  const { turns, verdict, status, paused, progress, connectionError, restoredSession, convene, retry, pause, resume, clearSession } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
 
   const [sessionError, setSessionError] = useState(null)
+
+  useEffect(() => {
+    if (!restoredSession) return
+    setHasStarted(true)
+    setSituation(restoredSession.situation || '')
+    setSubmittedSituation(restoredSession.situation || '')
+    setMeetingType(restoredSession.meetingType || 'decision')
+    if (restoredSession.directorIds?.length) setSelectedIds(restoredSession.directorIds)
+  }, [restoredSession])
 
   // Informe completo y chat de seguimiento con el Chairman (Task 15): ambos son
   // features restauradas del producto original, adaptadas a este backend vía el
@@ -139,6 +148,14 @@ function AppInner() {
     setSubmittedSituation('')
     setReportOpen(false)
   }
+
+  const handleDeleteSession = useCallback(async () => {
+    await clearSession()
+    setHasStarted(false)
+    setSituation('')
+    setSubmittedSituation('')
+    setReportOpen(false)
+  }, [clearSession])
 
   const handleGenerateReport = useCallback(async () => {
     setReportOpen(true)
@@ -350,8 +367,11 @@ function AppInner() {
               {sessionError && (
                 <div style={{ padding: '14px 18px', background: 'var(--red-dim)', border: '1px solid var(--red-bd)', borderRadius: 'var(--r-md)', color: 'var(--red)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                   <span>⚠️ {t('errors.genericSessionError')}</span>
+                  <button onClick={retry} style={{ color: 'var(--red)', textDecoration: 'underline', fontWeight: 700 }}>Reintentar</button>
                 </div>
               )}
+
+              <p style={{ fontSize: '11px', color: 'var(--t3)', lineHeight: 1.55, marginTop: '-4px' }}>Privacidad: los adjuntos se usan para esta junta. La última sesión se puede recuperar durante 24 horas en este dispositivo y puedes eliminarla cuando quieras.</p>
 
               <button
                 onClick={handleConvene}
@@ -388,6 +408,11 @@ function AppInner() {
         {/* ── DEBATE / RESULTADOS ── */}
         {(isRunning || isDone) && (
           <div>
+            {connectionError && (
+              <div role="alert" style={{ marginBottom: '18px', padding: '13px 16px', borderLeft: '2px solid var(--amber)', background: 'rgba(245, 180, 60, .08)', color: 'var(--t2)', fontSize: '13px', lineHeight: 1.5, display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <span>⚠️ {connectionError}</span><button onClick={retry} style={{ color: 'var(--blue)', fontWeight: 700 }}>Reintentar conexión</button>
+              </div>
+            )}
             {/* Header sesión */}
             <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
               <div style={{ flex: 1 }}>
@@ -399,9 +424,10 @@ function AppInner() {
                 </h2>
               </div>
               {isDone && (
-                <button onClick={handleReset} style={{ padding: '9px 18px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t2)', fontSize: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {t('action.newSessionShort')}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button onClick={handleReset} style={{ padding: '9px 18px', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', color: 'var(--t2)', fontSize: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('action.newSessionShort')}</button>
+                  <button onClick={handleDeleteSession} style={{ padding: '9px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--red-bd)', color: 'var(--red)', fontSize: '12px', whiteSpace: 'nowrap' }}>Eliminar sesión</button>
+                </div>
               )}
             </div>
 

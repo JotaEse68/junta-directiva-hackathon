@@ -41,6 +41,13 @@ function stateText(state, t) {
   return t(`debate.director.${state || 'waiting'}`)
 }
 
+function phaseEstimate(phase, completed, total, t) {
+  if (phase === 'parallel_analysis') return completed ? `· ${t('debate.estimate').replace('{time}', `~${Math.max(10, Math.ceil((total - completed) / 3) * 18)}s`)}` : `· ${t('debate.estimate').replace('{time}', '~30–60s')}`
+  if (phase === 'contrast') return `· ${t('debate.estimate').replace('{time}', '~15s')}`
+  if (phase === 'synthesizing') return `· ${t('debate.estimate').replace('{time}', '~20s')}`
+  return ''
+}
+
 // The visual board mirrors persisted backend states. Its animation is a view
 // of actual Gemini work, not a simulated loading sequence.
 export default function DebateChat({ turns, onClickDirector, paused, selectedDirectorIds, progress }) {
@@ -60,13 +67,14 @@ export default function DebateChat({ turns, onClickDirector, paused, selectedDir
   const phaseText = paused
     ? `⏸️ ${t('status.paused')}`
     : t(`debate.phase.${phase}`)
+  const failed = Object.values(states).filter(state => state === 'error').length
 
   return (
     <div>
       <section aria-label={t('debate.liveBoard')} style={{ marginBottom: '24px', padding: '16px', border: '1px solid var(--blue-bd)', borderRadius: 'var(--r-md)', background: 'linear-gradient(135deg, var(--blue-dim), rgba(255,255,255,0.02))' }}>
         <div role="status" aria-live="polite" aria-atomic="true" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap', marginBottom: '13px' }}>
           <span style={{ color: 'var(--t1)', fontSize: '13px', fontWeight: 700 }}>{phaseText}</span>
-          <span style={{ color: 'var(--t3)', fontSize: '11px' }}>{t('debate.progress').replace('{current}', String(completed)).replace('{total}', String(total))}{elapsed ? ` · ${t('debate.elapsed').replace('{time}', elapsed)}` : ''}</span>
+          <span style={{ color: 'var(--t3)', fontSize: '11px' }}>{t('debate.progress').replace('{current}', String(completed)).replace('{total}', String(total))}{phaseEstimate(phase, completed, total, t)}{elapsed ? ` · ${t('debate.elapsed').replace('{time}', elapsed)}` : ''}</span>
         </div>
         <div role="list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: '8px' }}>
           {participants.map(director => {
@@ -83,6 +91,12 @@ export default function DebateChat({ turns, onClickDirector, paused, selectedDir
           })}
         </div>
       </section>
+
+      {failed > 0 && completed > 0 && (
+        <aside role="status" style={{ margin: '-10px 0 20px', padding: '11px 14px', borderLeft: '2px solid var(--amber)', background: 'rgba(245, 180, 60, .08)', color: 'var(--t2)', fontSize: '12px', lineHeight: 1.5 }}>
+          {t('debate.partial').replace('{count}', String(failed))}
+        </aside>
+      )}
 
       {turns.map((turn, index) => {
         const director = DIRECTORS.find(item => item.id === turn.director_id)

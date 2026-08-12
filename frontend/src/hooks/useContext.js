@@ -1,16 +1,15 @@
 import { useState, useCallback } from 'react'
-import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import mammoth from 'mammoth/mammoth.browser'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://junta-backend-923278368829.us-central1.run.app'
 
-// Se empaquetan con la app, no se cargan desde un CDN: así la lectura de
-// archivos no depende de que una respuesta remota sea JavaScript válido.
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-
 // Extrae texto de PDF usando pdf.js local
 async function extractPDF(file) {
+  const [pdfjsLib, worker] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ])
+  pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
   let fullText = ''

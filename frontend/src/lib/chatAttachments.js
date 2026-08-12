@@ -1,12 +1,12 @@
-import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-
 const MAX_FILE_SIZE = 8 * 1024 * 1024
 const MAX_TEXT = 8000
 
 async function extractPdf(file) {
+  const [pdfjsLib, worker] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ])
+  pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default
   const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise
   let text = ''
   for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 20); pageNumber += 1) {
