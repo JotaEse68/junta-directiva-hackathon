@@ -4,10 +4,10 @@ import { DIRECTORS, MEETING_TYPES } from './directors.js'
 
 describe('translate', () => {
   it('returns English string by default', () => {
-    expect(translate('en', 'board.title')).toBe('Your Board of Directors')
+    expect(translate('en', 'board.title')).toBe('Before you decide, convene the board.')
   })
   it('returns Spanish string when lang is es', () => {
-    expect(translate('es', 'board.title')).toBe('Tu Junta Directiva')
+    expect(translate('es', 'board.title')).toBe('Antes de decidir, convoca la junta.')
   })
   it('falls back to the key itself if missing', () => {
     expect(translate('en', 'nonexistent.key')).toBe('nonexistent.key')

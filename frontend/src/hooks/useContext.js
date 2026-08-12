@@ -47,7 +47,7 @@ export function useContextBuilder() {
     setItems(prev => prev.filter(it => it.id !== id))
   }, [])
 
-  // Envía al servidor para resumir (Gemini-only, sin BYOK en este build —
+  // Envía al servidor para resumir (Gemini-only en este build —
   // ver backend/main.py POST /context, adaptado del original /api/context)
   const summarizeViaServer = async (type, payload, language) => {
     const body = { type, language: language || 'es', ...payload }

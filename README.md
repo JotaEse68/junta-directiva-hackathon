@@ -18,12 +18,12 @@ You describe a business situation and pick a meeting type; 12 specialized direct
 - **Additional context panel** — attach a PDF, Word doc, URL, or free-text notes; the backend summarizes it via `/context` before the debate starts.
 - **Pause / resume** an in-progress debate — nothing already generated is lost, the orchestrator polls a Firestore flag between turns.
 - **Live "thinking" indicator** for whichever director is currently being generated.
-- **Cost protection**: a 3-requests-per-day-per-IP free tier (shared across `/sessions`, `/coach`, `/context`), with an optional bring-your-own-Gemini-API-key bypass for unlimited use — billed to the user's own Google account, not the project owner's.
+- **Free judging access**: all features are available without payment, API keys, sign-up, or a usage cap, so judges can test the complete experience.
 - **Bilingual (ES/EN)** throughout, including per-director bios and meeting-type copy.
 
 ## Stack
 
-- **Gemini** (`gemini-2.5-flash`) via **Vertex AI** — called only from the backend, using the Cloud Run service account's credentials (Application Default Credentials). No API key is ever exposed to the browser.
+- **Gemini** (`gemini-3.5-flash`) via **Vertex AI** — called only from the backend, using the Cloud Run service account's credentials (Application Default Credentials). No API key is ever exposed to the browser.
 - **Google ADK** (`google-adk`) for agent orchestration — 12 director agents + 1 chairman-synthesis agent, each an ADK `Agent` run through `google.adk.runners.InMemoryRunner`.
 - **Cloud Run** (backend, FastAPI) + **Firestore** (session state, Native mode) — the two GCP infra services this entry uses.
 - **React 18 + Vite** frontend, deployed to **Firebase Hosting**.
@@ -32,7 +32,7 @@ You describe a business situation and pick a meeting type; 12 specialized direct
 
 The underlying product ("Junta Directiva AI", [juntadirectiva.vercel.app](https://juntadirectiva.vercel.app)) supports multiple AI providers (Claude/OpenAI/Gemini) with client-side, provider-agnostic API keys. This hackathon entry intentionally narrows the stack to comply with contest rules while restoring full feature parity:
 
-- **Gemini-only**, called server-side via Vertex AI by default — no provider picker. The optional BYOK bypass (above) is also Gemini-only, by design, to keep the judged surface unambiguous.
+- **Gemini-only**, called server-side via Vertex AI — no provider picker, BYOK path, or API-key UI.
 - Every other product feature (director selection, full report, chairman chat, additional context, pause/resume) has been ported to this async, ADK-orchestrated architecture rather than dropped.
 
 ## Status of this repo
@@ -87,7 +87,9 @@ Then:
 npm run dev
 ```
 
-The frontend only ever needs these three environment variables. By default there is no client-side Gemini/AI API key — all model calls happen from the backend via Vertex AI. A user can optionally paste their own Gemini API key in the settings modal to bypass the 3/day free-tier limit; that key is only ever sent to the backend per-request, never stored server-side, and calls made with it bill the user's own Google account, not the project owner's.
+The frontend only needs these three environment variables. There is no client-side Gemini/AI API key: all model calls happen on the backend through Vertex AI and the Cloud Run service account.
+
+For local backend development, set `GOOGLE_CLOUD_LOCATION=global`; Gemini 3.5 Flash is served through Vertex AI's global endpoint.
 
 ## Architecture
 
@@ -95,7 +97,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram
 
 ## Compliance checklist (hackathon rules)
 
-- [x] Gemini called via Vertex AI (`gemini-2.5-flash`, `backend/agents/directors.py` + `chairman.py`), visible in code
+- [x] Gemini 3.5+ called via Vertex AI (`gemini-3.5-flash`, `backend/agents/directors.py` + `chairman.py`), visible in code
 - [x] Google ADK used for agent orchestration (`google.adk.Agent` + `InMemoryRunner`), visible in code and in the architecture diagram
 - [x] Cloud Run + Firestore both provisioned and verified live — backend at https://junta-backend-923278368829.us-central1.run.app, frontend at https://junta-directiva-hackathon.web.app, end-to-end smoke-tested with real Vertex AI + Firestore (still needs to be **shown in the demo video**)
 - [x] Repo shared with `testing@devpost.com` + `cloudhackathons@google.com`

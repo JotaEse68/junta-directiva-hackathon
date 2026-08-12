@@ -7,11 +7,11 @@ import { callCoach } from '../lib/aiClient.js'
 // Desde la Task 16 el usuario puede elegir un subconjunto de directores para el debate,
 // así que `missingDirectors` (más abajo) puede ser no vacío: cualquier director cuyo id
 // no aparezca en `turns` recibe aquí su opinión exprés.
-async function quickTake({ director, situation, language, apiKey }) {
+async function quickTake({ director, situation, language }) {
   const userMsg = `SITUACIÓN: ${situation}
 
 Como ${director.name} (${director.title}), da tu opinión exprés en 2-3 frases desde tu especialidad. No es un análisis largo — solo tu primera reacción experta y directa, sin rodeos.`
-  return callCoach({ system: director.systemPrompt, userMsg, language, apiKey })
+  return callCoach({ system: director.systemPrompt, userMsg, language })
 }
 
 // Adaptado del `REPORT_SYSTEM` original (juntadirectiva/src/hooks/useReport.js): se retira
@@ -41,7 +41,7 @@ export function useReport() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const generateReport = useCallback(async ({ situation, meetingType, turns, verdict, language, apiKey }) => {
+  const generateReport = useCallback(async ({ situation, meetingType, turns, verdict, language }) => {
     setLoading(true)
     setError(null)
     setReport(null)
@@ -54,7 +54,7 @@ export function useReport() {
 
       const quickResults = await Promise.all(missingDirectors.map(async (director) => {
         try {
-          const text = await quickTake({ director, situation, language, apiKey })
+          const text = await quickTake({ director, situation, language })
           return { director, text }
         } catch {
           return { director, text: null }
@@ -89,12 +89,9 @@ ${quickSummary || '(todos los directores participaron en vivo)'}
 
 Produce el informe completo siguiendo exactamente la estructura indicada.`
 
-      const text = await callCoach({ system: REPORT_SYSTEM, userMsg: reportPrompt, language, apiKey })
+      const text = await callCoach({ system: REPORT_SYSTEM, userMsg: reportPrompt, language })
       setReport({ text, quickTakes })
     } catch (err) {
-      // err.message may be the stable code "RATE_LIMIT_EXCEEDED" (Task 20) —
-      // left untranslated here and mapped through i18n at render time
-      // (ReportModal.jsx), same convention as useContext.js's error codes.
       setError(err.message || 'No se pudo generar el informe completo')
     } finally {
       setLoading(false)

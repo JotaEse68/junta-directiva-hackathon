@@ -33,7 +33,7 @@ def test_build_director_agent_sets_instruction_and_model():
     director = DIRECTORS[0]
     agent = build_director_agent(director)
     assert agent.instruction == director["system_prompt"]
-    assert agent.model == "gemini-2.5-flash"
+    assert agent.model == "gemini-3.5-flash"
 
 
 def test_build_chairman_agent_returns_agent():

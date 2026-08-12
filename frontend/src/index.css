@@ -40,3 +40,98 @@ textarea, input { font-family: 'Inter', sans-serif; }
 .dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--blue); animation: pulse 1.2s ease infinite; }
 .dot:nth-child(2){animation-delay:.2s}
 .dot:nth-child(3){animation-delay:.4s}
+
+.board-overview {
+  display: grid;
+  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+  gap: 28px;
+  align-items: center;
+  margin-bottom: 56px;
+  padding: 24px 28px;
+  border: 1px solid var(--bd);
+  border-radius: var(--r-xl);
+  background: linear-gradient(115deg, rgba(56,182,255,.08), rgba(16,30,56,.86) 42%);
+}
+
+.eyebrow {
+  margin-bottom: 8px;
+  color: var(--blue);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.board-overview h2 {
+  max-width: 16ch;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.board-overview__steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+}
+
+.board-overview__steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--bd);
+  border-radius: var(--r-md);
+  background: rgba(6,13,31,.38);
+}
+
+.board-overview__steps span {
+  color: var(--blue);
+  font-size: .6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-overview__steps strong { color: var(--t1); font-size: .8125rem; }
+.board-overview__steps p { margin-top: 3px; color: var(--t2); font-size: .75rem; line-height: 1.45; }
+
+.board-hero { text-align: center; }
+
+.situation-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.situation-examples > span { color: var(--t3); font-size: .6875rem; }
+.situation-examples button {
+  padding: 5px 9px;
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  color: var(--t2);
+  font-size: .6875rem;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.situation-examples button:hover {
+  border-color: var(--blue-bd);
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+
+button:focus-visible, textarea:focus-visible, input:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .board-overview { grid-template-columns: 1fr; gap: 20px; padding: 22px; }
+  .board-overview__steps { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}

@@ -34,11 +34,9 @@ export function useChairmanChat() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
 
-  // sessionContext: { situation, turns, verdict, language, apiKey } — `language` decide
+  // sessionContext: { situation, turns, verdict, language } — `language` decide
   // si el backend (POST /coach) añade la directiva de responder en inglés, igual que en
   // el resto de llamadas a call_agent (ver backend/orchestrator.py, LANGUAGE_DIRECTIVE).
-  // `apiKey` (Task 20, opcional): si el usuario conectó su propia key de Gemini, se
-  // reenvía tal cual para saltarse el límite gratuito diario en este chat también.
   const sendMessage = useCallback(async (text, sessionContext) => {
     const question = text.trim()
     if (!question) return
@@ -54,7 +52,7 @@ export function useChairmanChat() {
         ? `${history}\n\nUsuario: ${question}\n\nResponde como Roberto.`
         : `Usuario: ${question}\n\nResponde como Roberto.`
 
-      const reply = await callCoach({ system, userMsg, language: sessionContext.language, apiKey: sessionContext.apiKey })
+      const reply = await callCoach({ system, userMsg, language: sessionContext.language })
       setMessages(prev => {
         const next = prev.slice()
         next[next.length - 1] = { role: 'assistant', content: reply }

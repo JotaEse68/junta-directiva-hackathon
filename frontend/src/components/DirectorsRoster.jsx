@@ -39,7 +39,7 @@ export default function DirectorsRoster({ directors, onClickDirector }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--t1)', marginBottom: '1px' }}>{d.name}</p>
-                <p style={{ fontSize: '11px', color: accent, marginBottom: '6px' }}>{d.title}</p>
+                <p style={{ fontSize: '11px', color: accent, marginBottom: '6px' }}>{bio?.tags?.[0] ?? d.title}</p>
                 <p style={{ fontSize: '12px', color: 'var(--t3)', lineHeight: 1.55 }}>{bio?.contribution ?? d.contribution}</p>
               </div>
             </button>

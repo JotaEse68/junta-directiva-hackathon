@@ -1,18 +1,12 @@
 import httpx
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from agents.coach import build_coach_agent
 from context_utils import SUMMARY_SYSTEM_PROMPT, extract_text_from_html
 from firestore_store import create_session, get_session, set_paused
-from orchestrator import (
-    LANGUAGE_DIRECTIVE,
-    call_agent,
-    call_agent_with_key,
-    run_board_session,
-)
-from rate_limit import check_and_increment, get_client_ip
+from orchestrator import LANGUAGE_DIRECTIVE, call_agent, run_board_session
 
 _CONTEXT_MAX_CHARS = 8000
 _CONTEXT_FETCH_TIMEOUT = 8.0
@@ -37,41 +31,15 @@ def health():
     return {"status": "ok"}
 
 
-def enforce_rate_limit(request: Request, api_key: str | None) -> None:
-    """Shared gate for the three AI-consuming endpoints (`/sessions`,
-    `/coach`, `/context` — Task 20): 3 requests/day/IP on the free tier,
-    completely bypassed when the caller supplies their own Gemini `api_key`
-    (that call is billed to the user's own Google account, not the repo
-    owner's — nothing to protect against). Deliberately does NOT validate
-    the key beyond "non-empty string": if it's garbage, the downstream
-    `call_agent_with_key` call just fails naturally and the user sees an
-    error — an acceptable hackathon-build tradeoff (see brief), not worth
-    building real key validation for.
-
-    Raises 429 with a stable error CODE (not localized prose) in `detail` so
-    the frontend can map it through its own i18n dictionary, same discipline
-    as Task 12/17's error-code plumbing.
-    """
-    if api_key and api_key.strip():
-        return
-    ip = get_client_ip(request)
-    if not check_and_increment(ip):
-        raise HTTPException(status_code=429, detail="RATE_LIMIT_EXCEEDED")
-
-
 class SessionRequest(BaseModel):
     situation: str
     meeting_type: str
     language: str = "es"
     director_ids: list[str] | None = None
-    api_key: str | None = None
 
 
 @app.post("/sessions")
-def create_session_endpoint(
-    req: SessionRequest, background_tasks: BackgroundTasks, request: Request
-):
-    enforce_rate_limit(request, req.api_key)
+def create_session_endpoint(req: SessionRequest, background_tasks: BackgroundTasks):
     session_id = create_session(
         req.situation, req.meeting_type, req.language, req.director_ids
     )
@@ -82,7 +50,6 @@ def create_session_endpoint(
         req.meeting_type,
         req.language,
         req.director_ids,
-        req.api_key,
     )
     return {"session_id": session_id}
 
@@ -111,33 +78,24 @@ class CoachRequest(BaseModel):
     system_prompt: str
     user_prompt: str
     language: str = "es"
-    api_key: str | None = None
 
 
 @app.post("/coach")
-def coach_endpoint(req: CoachRequest, request: Request):
+def coach_endpoint(req: CoachRequest):
     """Generic completion endpoint: runs `system_prompt` against
     `user_prompt` through Gemini and returns the raw text.
 
     Serves both the full written report and the chairman follow-up chat
     from the frontend (see `frontend/src/lib/aiClient.js`'s `callCoach`) —
-    same generic shape as the original product's `/api/coach`. Counts
-    against the free-tier daily limit (Task 20) unless the caller supplies
-    their own `api_key`, in which case it routes through
-    `call_agent_with_key` (plain google-genai, billed to the user) instead
-    of the default ADK/Vertex `call_agent` path.
+    same generic shape as the original product's `/api/coach`, using the
+    server-side ADK/Vertex AI path for every request.
     """
-    enforce_rate_limit(request, req.api_key)
-
     user_prompt = req.user_prompt
     if req.language == "en":
         user_prompt = user_prompt + LANGUAGE_DIRECTIVE
 
-    if req.api_key:
-        text = call_agent_with_key(req.api_key, req.system_prompt, user_prompt)
-    else:
-        agent = build_coach_agent(req.system_prompt)
-        text = call_agent(agent, user_prompt)
+    agent = build_coach_agent(req.system_prompt)
+    text = call_agent(agent, user_prompt)
     return {"text": text}
 
 
@@ -146,7 +104,6 @@ class ContextRequest(BaseModel):
     content: str | None = None
     url: str | None = None
     language: str = "es"
-    api_key: str | None = None
 
 
 def fetch_url_html(url: str) -> str:
@@ -167,7 +124,7 @@ def fetch_url_html(url: str) -> str:
 
 
 @app.post("/context")
-def context_endpoint(req: ContextRequest, request: Request):
+def context_endpoint(req: ContextRequest):
     """Summarize additional context (PDF/Word text, a URL, or a free-text
     note) into an executive briefing before it gets folded into a board
     session's `situation` string client-side (see Task 17 brief — the
@@ -177,10 +134,7 @@ def context_endpoint(req: ContextRequest, request: Request):
     Adapted from the original product's `/api/context` (Anthropic-backed
     Vercel Edge Function): same URL-validation / HTML-stripping / prompt
     logic, ported to Gemini via `build_coach_agent`/`call_agent` (the same
-    machinery `/coach` uses). Counts against the free-tier daily limit
-    (Task 20) unless `api_key` is supplied — checked right before the actual
-    Gemini call (after input validation), so a malformed request (400) never
-    burns a slot of the caller's daily quota.
+    machinery `/coach` uses).
     """
     raw_text = ""
     source_type = req.type
@@ -235,15 +189,10 @@ def context_endpoint(req: ContextRequest, request: Request):
     else:
         raise HTTPException(status_code=400, detail="Tipo no soportado")
 
-    enforce_rate_limit(request, req.api_key)
-
     user_prompt = f"Analiza este contenido ({source_type}) y extrae el briefing ejecutivo:\n\n{raw_text}"
     if req.language == "en":
         user_prompt = user_prompt + LANGUAGE_DIRECTIVE
 
-    if req.api_key:
-        summary = call_agent_with_key(req.api_key, SUMMARY_SYSTEM_PROMPT, user_prompt)
-    else:
-        agent = build_coach_agent(SUMMARY_SYSTEM_PROMPT)
-        summary = call_agent(agent, user_prompt)
+    agent = build_coach_agent(SUMMARY_SYSTEM_PROMPT)
+    summary = call_agent(agent, user_prompt)
     return {"summary": summary, "chars": len(raw_text)}

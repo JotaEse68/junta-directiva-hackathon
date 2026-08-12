@@ -3,14 +3,13 @@
 Cada director tiene id, name, title y system_prompt (copia literal, sin
 parafrasear, del systemPrompt original en JS).
 
-Modelo Gemini vía Vertex AI: gemini-2.5-flash (confirmado como id de modelo
-vigente contra la documentacion/ejemplos oficiales de google-adk, ver
-README de google/adk-python: `model="gemini-2.5-flash"`).
+Modelo Gemini vía Vertex AI: gemini-3.5-flash, el modelo mínimo exigido por
+las reglas del hackathon.
 """
 
 from google.adk import Agent
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.5-flash"
 
 DIRECTORS: list[dict] = [
     {

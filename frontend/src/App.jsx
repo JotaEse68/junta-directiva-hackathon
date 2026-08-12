@@ -6,7 +6,6 @@ import DirectorModal from './components/DirectorModal.jsx'
 import DirectorsRoster from './components/DirectorsRoster.jsx'
 import DownloadBanner from './components/DownloadBanner.jsx'
 import ReportModal from './components/ReportModal.jsx'
-import SettingsModal from './components/SettingsModal.jsx'
 import VerdictPanel from './components/VerdictPanel.jsx'
 import { useBoard } from './hooks/useBoard.js'
 import { useChairmanChat } from './hooks/useChairmanChat.js'
@@ -14,15 +13,9 @@ import { useContextBuilder } from './hooks/useContext.js'
 import { useReport } from './hooks/useReport.js'
 import { DIRECTORS, MEETING_TYPES, selectDirectorsForMeeting, orderForDebate } from './lib/directors.js'
 import { computeConsensus } from './lib/consensus.js'
-import { I18nProvider, useI18n, MEETING_DESC_I18N } from './lib/i18n.js'
+import { I18nProvider, useI18n, DIRECTOR_I18N, MEETING_DESC_I18N } from './lib/i18n.js'
 
 const MAX_CHARS = 800
-
-// Task 20 (BYOK): localStorage key for the user's own Gemini API key, if
-// they've connected one — matches the original product's persistence
-// pattern (see SettingsModal.jsx). Never sent anywhere except straight to
-// our own backend, which forwards it to Gemini and doesn't store it.
-const API_KEY_STORAGE_KEY = 'junta_gemini_api_key'
 
 // Mapea el id de tipo de reunión (en español, usado internamente en lib/directors.js)
 // a la clave de traducción i18n correspondiente para su etiqueta.
@@ -36,6 +29,8 @@ const MEETING_TYPE_KEYS = {
   negociacion: 'meeting.negotiation',
   pitch: 'meeting.pitch',
 }
+
+const EXAMPLE_KEYS = ['form.exampleHire', 'form.exampleLaunch', 'form.exampleInvest', 'form.exampleCrisis']
 
 export default function App() {
   return (
@@ -62,24 +57,7 @@ function AppInner() {
   const { turns, verdict, status, paused, convene, pause, resume } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
 
-  // BYOK (Task 20): the user's own Gemini key, if connected, persisted the same
-  // way the original product did (localStorage) — routes every AI-consuming call
-  // through the backend's BYOK path (call_agent_with_key) and bypasses the
-  // free-tier daily limit entirely. `sessionError` surfaces convene() failures
-  // (most notably a 429 from the free tier) instead of leaving the UI stuck on
-  // "starting" with no feedback.
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE_KEY) || '')
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [sessionError, setSessionError] = useState(null)
-
-  const handleSaveApiKey = useCallback((key) => {
-    setApiKey(key)
-    if (key) {
-      localStorage.setItem(API_KEY_STORAGE_KEY, key)
-    } else {
-      localStorage.removeItem(API_KEY_STORAGE_KEY)
-    }
-  }, [])
 
   // Informe completo y chat de seguimiento con el Chairman (Task 15): ambos son
   // features restauradas del producto original, adaptadas a este backend vía el
@@ -140,16 +118,14 @@ function AppInner() {
       ? `${situation.trim()}\n\n${buildContextBlock()}`
       : situation.trim()
     try {
-      await convene(fullSituation, meetingType, lang, directors.map(d => d.id), apiKey)
+      await convene(fullSituation, meetingType, lang, directors.map(d => d.id))
     } catch (err) {
-      // Task 20: most commonly a 429 free-tier limit (err.message ===
-      // "RATE_LIMIT_EXCEEDED") — mapped through i18n below rather than shown
-      // raw. Reset to the initial form instead of leaving the UI stuck on
+      // Reset to the initial form instead of leaving the UI stuck on
       // "starting" with nothing happening.
       setSessionError(err.message || 'unknown')
       setHasStarted(false)
     }
-  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, ctxProcessing, apiKey])
+  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, ctxProcessing])
 
   const handleReset = () => {
     setHasStarted(false)
@@ -159,12 +135,12 @@ function AppInner() {
 
   const handleGenerateReport = useCallback(async () => {
     setReportOpen(true)
-    await generateReport({ situation, meetingType, turns, verdict, language: lang, apiKey })
-  }, [situation, meetingType, turns, verdict, lang, generateReport, apiKey])
+    await generateReport({ situation, meetingType, turns, verdict, language: lang })
+  }, [situation, meetingType, turns, verdict, lang, generateReport])
 
   const handleSendChairman = useCallback((text) => {
-    sendChairmanMessage(text, { situation, turns, verdict, language: lang, apiKey })
-  }, [situation, turns, verdict, lang, sendChairmanMessage, apiKey])
+    sendChairmanMessage(text, { situation, turns, verdict, language: lang })
+  }, [situation, turns, verdict, lang, sendChairmanMessage])
 
   // Extrae el voto de un director del texto generado
   const getDirectorVote = (dirId) => {
@@ -225,15 +201,6 @@ function AppInner() {
               ES
             </button>
           </div>
-          {/* Task 20: settings trigger — opens the free-tier/BYOK modal. Highlighted
-              when a key is connected so the user can see BYOK mode is active at a glance. */}
-          <button
-            onClick={() => setSettingsOpen(true)}
-            title={t('settings.trigger')}
-            style={{ padding: '6px 10px', borderRadius: 'var(--r-sm)', border: `1px solid ${apiKey ? 'var(--blue-bd)' : 'var(--bd)'}`, background: apiKey ? 'var(--blue-dim)' : 'transparent', color: apiKey ? 'var(--blue)' : 'var(--t3)', fontSize: '13px' }}
-          >
-            ⚙️
-          </button>
         </div>
       </nav>
 
@@ -242,8 +209,28 @@ function AppInner() {
         {/* ── PANTALLA INICIAL ── */}
         {isIdle && (
           <>
+            {/* El resumen abre la página como en la versión de producto, pero deja
+                explícito que toda la experiencia del hackathon está disponible
+                gratuitamente: no introduce un pago ni un flujo alternativo. */}
+            <section className="board-overview fade-up" aria-labelledby="overview-title">
+              <div className="board-overview__intro">
+                <p className="eyebrow">{t('overview.kicker')}</p>
+                <h2 id="overview-title">{t('overview.title')}</h2>
+              </div>
+              <ol className="board-overview__steps">
+                <li>
+                  <span>01</span>
+                  <div><strong>{t('overview.stepOne')}</strong><p>{t('overview.stepOneDesc')}</p></div>
+                </li>
+                <li>
+                  <span>02</span>
+                  <div><strong>{t('overview.stepTwo')}</strong><p>{t('overview.stepTwoDesc')}</p></div>
+                </li>
+              </ol>
+            </section>
+
             {/* Hero */}
-            <div className="fade-up" style={{ textAlign: 'center', marginBottom: '52px' }}>
+            <div className="board-hero fade-up" style={{ marginBottom: '52px', animationDelay: '.06s' }}>
               <p style={{ fontSize: '11px', color: 'var(--blue)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: '16px', fontWeight: 500 }}>
                 {t('hero.kicker')}
               </p>
@@ -273,6 +260,7 @@ function AppInner() {
                       key={d.id}
                       onClick={() => toggleDirector(d.id)}
                       title={(isOn ? t('board.removeDirector') : t('board.includeDirector')).replace('{name}', d.name)}
+                      aria-pressed={isOn}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '7px',
                         padding: '7px 14px', borderRadius: '24px',
@@ -286,7 +274,7 @@ function AppInner() {
                     >
                       <span>{d.emoji}</span>
                       <span>{d.name}</span>
-                      <span style={{ fontWeight: 400, opacity: .6, fontSize: '11px' }}>· {d.title.split(' ').slice(-1)[0]}</span>
+                      <span style={{ fontWeight: 400, opacity: .6, fontSize: '11px' }}>· {DIRECTOR_I18N[lang]?.[d.id]?.tags?.[0] ?? d.title}</span>
                       {!isOn && <span style={{ fontSize: '11px' }}>✕</span>}
                     </button>
                   )
@@ -309,7 +297,7 @@ function AppInner() {
                 <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 500 }}>{t('form.meetingType')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                   {MEETING_TYPES.map(mt => (
-                    <button key={mt.id} onClick={() => handleMeetingTypeChange(mt.id)}
+                    <button key={mt.id} onClick={() => handleMeetingTypeChange(mt.id)} aria-pressed={meetingType === mt.id}
                       style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', textAlign: 'left', border: `1px solid ${meetingType === mt.id ? 'var(--blue-bd)' : 'var(--bd)'}`, background: meetingType === mt.id ? 'var(--blue-dim)' : 'var(--bg3)', transition: 'all .2s' }}>
                       <div style={{ fontSize: '16px', marginBottom: '4px' }}>{mt.icon}</div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: meetingType === mt.id ? 'var(--blue)' : 'var(--t1)', marginBottom: '2px' }}>{MEETING_TYPE_KEYS[mt.id] ? t(MEETING_TYPE_KEYS[mt.id]) : mt.label}</div>
@@ -320,8 +308,9 @@ function AppInner() {
               </div>
 
               <div>
-                <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 500 }}>{t('form.situationLabel')}</p>
+                <label htmlFor="board-situation" style={{ display: 'block', fontSize: '11px', color: 'var(--t3)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 500 }}>{t('form.situationLabel')}</label>
                 <textarea
+                  id="board-situation"
                   value={situation}
                   onChange={e => setSituation(e.target.value.slice(0, MAX_CHARS))}
                   placeholder={t('form.situationPlaceholder')}
@@ -334,6 +323,12 @@ function AppInner() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{t('form.cmdEnterHint')}</span>
                   <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{situation.length}/{MAX_CHARS}</span>
+                </div>
+                <div className="situation-examples" aria-label={t('form.examplesLabel')}>
+                  <span>{t('form.examplesLabel')}</span>
+                  {EXAMPLE_KEYS.map(key => (
+                    <button key={key} type="button" onClick={() => setSituation(t(key))}>{t(key)}</button>
+                  ))}
                 </div>
               </div>
 
@@ -363,17 +358,9 @@ function AppInner() {
                 />
               </div>
 
-              {/* Task 20: shown when convene() fails — most commonly a 429 free-tier
-                  limit, mapped through i18n rather than a raw error dump, with a
-                  direct link into the settings modal so BYOK is one click away. */}
               {sessionError && (
                 <div style={{ padding: '14px 18px', background: 'var(--red-dim)', border: '1px solid var(--red-bd)', borderRadius: 'var(--r-md)', color: 'var(--red)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                  <span>⚠️ {sessionError === 'RATE_LIMIT_EXCEEDED' ? t('errors.rateLimitExceeded') : t('errors.genericSessionError')}</span>
-                  {sessionError === 'RATE_LIMIT_EXCEEDED' && (
-                    <button onClick={() => setSettingsOpen(true)} style={{ padding: '7px 14px', borderRadius: 'var(--r-sm)', border: '1px solid var(--red-bd)', color: 'var(--red)', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {t('errors.openSettings')}
-                    </button>
-                  )}
+                  <span>⚠️ {t('errors.genericSessionError')}</span>
                 </div>
               )}
 
@@ -479,13 +466,6 @@ function AppInner() {
         />
       )}
 
-      {settingsOpen && (
-        <SettingsModal
-          currentKey={apiKey}
-          onSave={handleSaveApiKey}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
     </div>
   )
 }

@@ -6,18 +6,9 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-import rate_limit
 from main import app
 
 client = TestClient(app)
-
-
-def setup_function(_):
-    # Task 20's rate limiter shares a process-wide counter (rate_limit.py) —
-    # clear it between tests so usage from other test modules sharing this
-    # pytest process (e.g. test_main.py's rate-limit tests) doesn't bleed
-    # into these, which assume every call starts under the free-tier limit.
-    rate_limit._requests.clear()
 
 
 @patch("main.call_agent", return_value="mocked coach response")

@@ -10,10 +10,7 @@ export function useBoard() {
   const unsubscribeRef = useRef(null)
   const sessionIdRef = useRef(null)
 
-  // `apiKey` (Task 20, optional): threaded straight through to createSession —
-  // when set, the backend bypasses the free-tier daily limit and runs the
-  // whole session via the user's own Gemini key (call_agent_with_key).
-  const convene = useCallback(async (situation, meetingType, language, directorIds, apiKey) => {
+  const convene = useCallback(async (situation, meetingType, language, directorIds) => {
     unsubscribeRef.current?.()
     setTurns([])
     setVerdict(null)
@@ -21,7 +18,7 @@ export function useBoard() {
     setPaused(false)
 
     try {
-      const sessionId = await createSession(situation, meetingType, language, directorIds, apiKey)
+      const sessionId = await createSession(situation, meetingType, language, directorIds)
       sessionIdRef.current = sessionId
 
       unsubscribeRef.current = subscribeToSession(sessionId, (data) => {
@@ -34,8 +31,8 @@ export function useBoard() {
 
       return sessionId
     } catch (err) {
-      // createSession failed (e.g. 429 free-tier limit) before any session
-      // was ever created — reset to idle so the caller's UI falls back to
+      // createSession failed before any session was ever created — reset to
+      // idle so the caller's UI falls back to
       // the initial form instead of being stuck on "starting" forever, and
       // rethrow so the caller (App.jsx) can surface the error.
       setStatus('idle')
