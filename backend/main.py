@@ -78,6 +78,7 @@ class CoachRequest(BaseModel):
     system_prompt: str
     user_prompt: str
     language: str = "es"
+    attachments: list[dict] = []
 
 
 @app.post("/coach")
@@ -95,7 +96,7 @@ def coach_endpoint(req: CoachRequest):
         user_prompt = user_prompt + LANGUAGE_DIRECTIVE
 
     agent = build_coach_agent(req.system_prompt)
-    text = call_agent(agent, user_prompt)
+    text = call_agent(agent, user_prompt, req.attachments)
     return {"text": text}
 
 

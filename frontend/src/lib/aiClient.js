@@ -13,8 +13,8 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://junta-backend-9
 // Generic completion call to POST /coach (backend/main.py), which backs both the
 // full report (useReport.js) and the chairman follow-up chat (useChairmanChat.js).
 //
-export async function callCoach({ system, userMsg, language = 'es' }) {
-  const body = { system_prompt: system, user_prompt: userMsg, language }
+export async function callCoach({ system, userMsg, language = 'es', attachments = [] }) {
+  const body = { system_prompt: system, user_prompt: userMsg, language, attachments }
 
   const res = await fetch(`${BACKEND_URL}/coach`, {
     method: 'POST',

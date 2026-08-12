@@ -11,6 +11,7 @@ back to the client.
 import asyncio
 import time
 import uuid
+import base64
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from google.adk.runners import InMemoryRunner
@@ -43,7 +44,7 @@ def wait_if_paused(session_id: str) -> None:
         time.sleep(_PAUSE_POLL_INTERVAL_SECONDS)
 
 
-def call_agent(agent, prompt: str) -> str:
+def call_agent(agent, prompt: str, attachments: list[dict] | None = None) -> str:
     """Run a single ADK agent synchronously against `prompt` and return its
     final text response.
 
@@ -76,7 +77,18 @@ def call_agent(agent, prompt: str) -> str:
         )
     )
 
-    message = types.Content(role="user", parts=[types.Part(text=prompt)])
+    parts = [types.Part(text=prompt)]
+    for attachment in attachments or []:
+        if attachment.get("kind") != "image":
+            continue
+        try:
+            parts.append(types.Part.from_bytes(
+                data=base64.b64decode(attachment["data"]),
+                mime_type=attachment["mimeType"],
+            ))
+        except (KeyError, ValueError):
+            continue
+    message = types.Content(role="user", parts=parts)
 
     final_text = ""
     for event in runner.run(

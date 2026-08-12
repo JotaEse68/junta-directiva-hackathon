@@ -145,8 +145,8 @@ function AppInner() {
     await generateReport({ situation: submittedSituation || situation, meetingType, turns, verdict, language: lang })
   }, [submittedSituation, situation, meetingType, turns, verdict, lang, generateReport])
 
-  const handleSendChairman = useCallback((text) => {
-    sendChairmanMessage(text, { situation: submittedSituation || situation, turns, verdict, language: lang })
+  const handleSendChairman = useCallback((text, attachments = []) => {
+    sendChairmanMessage(text, attachments, { situation: submittedSituation || situation, turns, verdict, language: lang })
   }, [submittedSituation, situation, turns, verdict, lang, sendChairmanMessage])
 
   // Extrae el voto de un director del texto generado
@@ -433,6 +433,7 @@ function AppInner() {
                 sending={chairmanSending}
                 error={chairmanError}
                 onSend={handleSendChairman}
+                situation={submittedSituation || situation}
               />
             )}
 

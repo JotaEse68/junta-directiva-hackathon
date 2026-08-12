@@ -183,3 +183,13 @@ export function downloadExecutiveReportPdf(data) {
   const doc = createExecutiveReportPdf(data)
   doc.save(`junta-directiva-informe-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
+
+export function downloadChairmanReplyPdf({ situation, reply, language = 'es' }) {
+  const doc = createExecutiveReportPdf({
+    situation,
+    verdict: reply,
+    report: { text: `ACCIONES PRIORITARIAS\n${reply}`, quickTakes: [] },
+    language,
+  })
+  doc.save(`junta-directiva-respuesta-${new Date().toISOString().slice(0, 10)}.pdf`)
+}

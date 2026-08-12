@@ -37,22 +37,35 @@ export function useChairmanChat() {
   // sessionContext: { situation, turns, verdict, language } — `language` decide
   // si el backend (POST /coach) añade la directiva de responder en inglés, igual que en
   // el resto de llamadas a call_agent (ver backend/orchestrator.py, LANGUAGE_DIRECTIVE).
-  const sendMessage = useCallback(async (text, sessionContext) => {
+  const sendMessage = useCallback(async (text, attachmentsOrContext = [], maybeSessionContext) => {
+    // Backwards-compatible public hook signature: existing callers can keep
+    // sendMessage(text, sessionContext), while the chat UI uses the new
+    // sendMessage(text, attachments, sessionContext).
+    const attachments = Array.isArray(attachmentsOrContext) ? attachmentsOrContext : []
+    const sessionContext = maybeSessionContext || attachmentsOrContext
     const question = text.trim()
     if (!question) return
 
     setSending(true)
     setError(null)
-    setMessages(prev => [...prev, { role: 'user', content: question }, { role: 'assistant', content: '' }])
+    const attachmentLabel = attachments.length ? `\n\nAdjuntos: ${attachments.map(a => a.name).join(', ')}` : ''
+    const userMessage = attachments.length
+      ? { role: 'user', content: `${question}${attachmentLabel}`, attachments }
+      : { role: 'user', content: question }
+    setMessages(prev => [...prev, userMessage, { role: 'assistant', content: '' }])
 
     try {
       const system = buildChairmanSystem(sessionContext)
       const history = messages.map(m => `${m.role === 'user' ? 'Usuario' : 'Roberto'}: ${m.content}`).join('\n\n')
+      const documentContext = attachments.filter(a => a.kind === 'document')
+        .map(a => `DOCUMENTO ADJUNTO: ${a.name}\n${a.text}`)
+        .join('\n\n')
       const userMsg = history
-        ? `${history}\n\nUsuario: ${question}\n\nResponde como Roberto.`
-        : `Usuario: ${question}\n\nResponde como Roberto.`
+        ? `${history}\n\nUsuario: ${question}\n\n${documentContext}\n\nResponde como Roberto.`
+        : `Usuario: ${question}\n\n${documentContext}\n\nResponde como Roberto.`
 
-      const reply = await callCoach({ system, userMsg, language: sessionContext.language })
+      const images = attachments.filter(a => a.kind === 'image')
+      const reply = await callCoach({ system, userMsg, language: sessionContext.language, attachments: images })
       setMessages(prev => {
         const next = prev.slice()
         next[next.length - 1] = { role: 'assistant', content: reply }
