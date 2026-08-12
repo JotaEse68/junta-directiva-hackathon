@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from google.cloud import firestore
+from google.cloud.firestore_v1.field_path import FieldPath
 
 _db = firestore.Client()
 _COLLECTION = "sessions"
@@ -41,9 +42,9 @@ def append_turn(session_id: str, director_id: str, text: str, kind: str = "analy
 def set_director_progress(session_id: str, director_id: str, state: str) -> None:
     """Update one director without overwriting concurrent colleagues' state."""
     _db.collection(_COLLECTION).document(session_id).update({
-        # Director ids contain hyphens, so use FieldPath instead of a dotted
-        # string (which Firestore would parse as an invalid field path).
-        firestore.FieldPath("director_progress", director_id): state,
+        # Use Firestore's escaped API field path so a future custom director
+        # id can safely contain punctuation without replacing the whole map.
+        FieldPath("director_progress", director_id).to_api_repr(): state,
     })
 
 def set_progress(session_id: str, director_id: str | None, step: int, total_steps: int, phase: str) -> None:
