@@ -2,8 +2,11 @@ import { initializeApp } from 'firebase/app'
 import { getFirestore, doc, onSnapshot } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  // Firebase web configuration identifies this public app; it is not a
+  // server secret. Keep build-time overrides, but include the deployed
+  // project fallback so Hosting builds never lose the Firestore listener.
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyBoMJgtD-VZziXkP58Y4r8OO-d_pfY9olc',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'junta-directiva-hackathon',
 }
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
