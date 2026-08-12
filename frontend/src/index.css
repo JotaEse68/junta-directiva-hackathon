@@ -42,12 +42,9 @@ textarea, input { font-family: 'Inter', sans-serif; }
 .dot:nth-child(3){animation-delay:.4s}
 
 .board-overview {
-  display: grid;
-  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
-  gap: 28px;
-  align-items: center;
+  display: block;
   margin-bottom: 56px;
-  padding: 24px 28px;
+  padding: 26px 28px 28px;
   border: 1px solid var(--bd);
   border-radius: var(--r-xl);
   background: linear-gradient(115deg, rgba(56,182,255,.08), rgba(16,30,56,.86) 42%);
@@ -63,7 +60,7 @@ textarea, input { font-family: 'Inter', sans-serif; }
 }
 
 .board-overview h2 {
-  max-width: 16ch;
+  max-width: 24ch;
   font-family: 'Playfair Display', serif;
   font-size: clamp(1.5rem, 2.8vw, 2rem);
   font-weight: 400;
@@ -72,9 +69,10 @@ textarea, input { font-family: 'Inter', sans-serif; }
 
 .board-overview__steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   list-style: none;
+  margin-top: 20px;
 }
 
 .board-overview__steps li {
@@ -88,14 +86,20 @@ textarea, input { font-family: 'Inter', sans-serif; }
   background: rgba(6,13,31,.38);
 }
 
+.board-overview__steps li:last-child {
+  grid-column: 1 / -1;
+  border-color: var(--blue-bd);
+  background: linear-gradient(90deg, var(--blue-dim), rgba(35,190,174,.08));
+}
+
 .board-overview__steps span {
   color: var(--blue);
   font-size: .6875rem;
   font-variant-numeric: tabular-nums;
 }
 
-.board-overview__steps strong { color: var(--t1); font-size: .8125rem; }
-.board-overview__steps p { margin-top: 3px; color: var(--t2); font-size: .75rem; line-height: 1.45; }
+.board-overview__steps strong { color: var(--t1); font-size: .875rem; }
+.board-overview__steps p { margin-top: 3px; color: var(--t2); font-size: .8125rem; line-height: 1.5; }
 
 .board-hero { text-align: center; }
 
@@ -128,7 +132,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .board-overview { grid-template-columns: 1fr; gap: 20px; padding: 22px; }
+  .board-overview { padding: 22px; }
   .board-overview__steps { grid-template-columns: 1fr; }
 }
 
