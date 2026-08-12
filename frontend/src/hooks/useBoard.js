@@ -6,7 +6,7 @@ export function useBoard() {
   const [verdict, setVerdict] = useState(null)
   const [status, setStatus] = useState('idle')
   const [paused, setPaused] = useState(false)
-  const [progress, setProgress] = useState({ directorId: null, step: 0, totalSteps: 0, phase: 'idle', createdAt: null })
+  const [progress, setProgress] = useState({ directorId: null, step: 0, totalSteps: 0, phase: 'idle', createdAt: null, directorProgress: {} })
 
   const unsubscribeRef = useRef(null)
   const sessionIdRef = useRef(null)
@@ -17,7 +17,7 @@ export function useBoard() {
     setVerdict(null)
     setStatus('starting')
     setPaused(false)
-    setProgress({ directorId: null, step: 0, totalSteps: directorIds?.length || 0, phase: 'preparing', createdAt: new Date().toISOString() })
+    setProgress({ directorId: null, step: 0, totalSteps: directorIds?.length || 0, phase: 'preparing', createdAt: new Date().toISOString(), directorProgress: {} })
 
     try {
       const sessionId = await createSession(situation, meetingType, language, directorIds)
@@ -35,6 +35,7 @@ export function useBoard() {
           totalSteps: data.total_steps ?? directorIds?.length ?? 0,
           phase: data.phase ?? 'preparing',
           createdAt: data.created_at ?? null,
+          directorProgress: data.director_progress ?? {},
         })
       })
 
@@ -45,7 +46,7 @@ export function useBoard() {
       // the initial form instead of being stuck on "starting" forever, and
       // rethrow so the caller (App.jsx) can surface the error.
       setStatus('idle')
-      setProgress({ directorId: null, step: 0, totalSteps: 0, phase: 'idle', createdAt: null })
+      setProgress({ directorId: null, step: 0, totalSteps: 0, phase: 'idle', createdAt: null, directorProgress: {} })
       throw err
     }
   }, [])

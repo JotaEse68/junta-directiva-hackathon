@@ -25,6 +25,7 @@ def create_session(
         "current_step": 0,
         "total_steps": len(director_ids) if director_ids is not None else None,
         "phase": "preparing",
+        "director_progress": {},
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return session_id
@@ -33,9 +34,17 @@ def get_session(session_id: str) -> dict:
     doc = _db.collection(_COLLECTION).document(session_id).get()
     return doc.to_dict()
 
-def append_turn(session_id: str, director_id: str, text: str) -> None:
+def append_turn(session_id: str, director_id: str, text: str, kind: str = "analysis") -> None:
     ref = _db.collection(_COLLECTION).document(session_id)
-    ref.update({"turns": firestore.ArrayUnion([{"director_id": director_id, "text": text}])})
+    ref.update({"turns": firestore.ArrayUnion([{"director_id": director_id, "text": text, "kind": kind}])})
+
+def set_director_progress(session_id: str, director_id: str, state: str) -> None:
+    """Update one director without overwriting concurrent colleagues' state."""
+    _db.collection(_COLLECTION).document(session_id).update({
+        # Director ids contain hyphens, so use FieldPath instead of a dotted
+        # string (which Firestore would parse as an invalid field path).
+        firestore.FieldPath("director_progress", director_id): state,
+    })
 
 def set_progress(session_id: str, director_id: str | None, step: int, total_steps: int, phase: str) -> None:
     """Publish the background job stage before a full Gemini response arrives."""

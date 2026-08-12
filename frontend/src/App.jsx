@@ -81,8 +81,9 @@ function AppInner() {
   // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
   // se deriva de `turns` en vez de tocar esa función, ya que solo se le pasan directores
   // que ya completaron su turno.
+  const initialTurns = useMemo(() => turns.filter(turn => turn.kind !== 'contrast'), [turns])
   const directorStates = useMemo(
-    () => Object.fromEntries(turns.map(t => [t.director_id, { status: 'done', text: t.text }])),
+    () => Object.fromEntries(initialTurns.map(t => [t.director_id, { status: 'done', text: t.text }])),
     [turns]
   )
   const consensus = useMemo(() => computeConsensus(directorStates), [directorStates])
@@ -100,7 +101,7 @@ function AppInner() {
   const isRunning = hasStarted && status !== 'done'
   const isDone    = hasStarted && status === 'done'
 
-  const doneCount  = turns.length
+  const doneCount  = initialTurns.length
   // Reflects the director count for the current/last convened session — selectedIds
   // doesn't reset on "Nueva sesión" (handleReset), only when the meeting type changes.
   const totalCount = selectedIds.length

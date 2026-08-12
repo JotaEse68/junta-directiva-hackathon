@@ -11,13 +11,14 @@ back to the client.
 import asyncio
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
 from agents.directors import DIRECTORS, build_director_agent
 from agents.chairman import CHAIRMAN_SYSTEM_PROMPT, build_chairman_agent
-from firestore_store import append_turn, set_verdict, set_status, set_progress, is_paused
+from firestore_store import append_turn, set_verdict, set_status, set_progress, set_director_progress, is_paused
 
 _APP_NAME = "junta-directiva"
 
@@ -90,6 +91,16 @@ def call_agent(agent, prompt: str) -> str:
 
 
 LANGUAGE_DIRECTIVE = "\n\nIMPORTANT: Write your entire response in English, regardless of the language of the instructions above."
+_CROSS_EXAMINATION_LIMIT = 3
+
+
+def run_initial_analysis(session_id: str, director: dict, prompt: str) -> tuple[dict, str]:
+    """Run one independent first-pass analysis and publish its real state."""
+    set_director_progress(session_id, director["id"], "analyzing")
+    text = call_agent(build_director_agent(director), prompt)
+    append_turn(session_id, director["id"], text, kind="analysis")
+    set_director_progress(session_id, director["id"], "ready")
+    return director, text
 
 
 def run_board_session(
@@ -115,18 +126,37 @@ def run_board_session(
 
     responses = []
     total_director_steps = len(directors_to_run)
-    for index, director in enumerate(directors_to_run, start=1):
-        # Blocks here, between turns only — checked once right at the start
-        # of each iteration (before the agent call starts), never mid-call,
-        # so pausing never cuts off content already being generated. Also
-        # covers the "paused instantly after creation" case since this is
-        # the very first thing that happens for the first director too.
-        wait_if_paused(session_id)
-        set_progress(session_id, director["id"], index, total_director_steps, "analyzing")
-        agent = build_director_agent(director)
-        text = call_agent(agent, director_prompt)
-        append_turn(session_id, director["id"], text)
-        responses.append((director, text))
+    # First pass: every selected specialist studies the same briefing at once.
+    # This is intentionally independent; the second pass below is where they
+    # inspect one another's ideas. The UI gets each completion immediately.
+    set_progress(session_id, None, 0, total_director_steps, "parallel_analysis")
+    for director in directors_to_run:
+        set_director_progress(session_id, director["id"], "waiting")
+    wait_if_paused(session_id)
+    with ThreadPoolExecutor(max_workers=max(1, total_director_steps)) as executor:
+        futures = [executor.submit(run_initial_analysis, session_id, director, director_prompt) for director in directors_to_run]
+        for future in as_completed(futures):
+            director, text = future.result()
+            responses.append((director, text))
+            set_progress(session_id, director["id"], len(responses), total_director_steps, "parallel_analysis")
+
+    # Cross-examination: a small rotating panel receives the group's actual
+    # findings and challenges assumptions before the chairman synthesizes them.
+    wait_if_paused(session_id)
+    set_progress(session_id, None, total_director_steps, total_director_steps, "contrasting")
+    summary = "\n\n".join(f"{director['name']}: {text[:1200]}" for director, text in responses)
+    contrast_prompt = (
+        f"{director_prompt}\n\nPERSPECTIVAS INICIALES DE LA JUNTA:\n{summary}"
+        "\n\nRONDA DE CONTRASTE: identifica una coincidencia o discrepancia relevante "
+        "con las aportaciones anteriores y explica qué debería cambiar en la decisión. Sé concreto y breve."
+    )
+    if language == "en":
+        contrast_prompt += LANGUAGE_DIRECTIVE
+    for director in directors_to_run[:_CROSS_EXAMINATION_LIMIT]:
+        set_director_progress(session_id, director["id"], "contrasting")
+        text = call_agent(build_director_agent(director), contrast_prompt)
+        append_turn(session_id, director["id"], text, kind="contrast")
+        set_director_progress(session_id, director["id"], "ready")
 
     # Same guarantee before the chairman's turn.
     wait_if_paused(session_id)
