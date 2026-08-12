@@ -1,5 +1,6 @@
 import React from 'react'
 import { useI18n } from '../lib/i18n.js'
+import { downloadExecutiveReportPdf } from '../lib/reportPdf.js'
 
 const KNOWN_HEADERS = [
   'HOJA DE RUTA 30/60/90 DÍAS',
@@ -30,41 +31,12 @@ function parseSections(text) {
   return sections
 }
 
-function buildDownloadText(t, situation, verdict, report) {
-  const parts = [
-    t('report.downloadHeading'),
-    '='.repeat(40),
-    '',
-    `${t('report.downloadSituation')}: ${situation}`,
-    '',
-    t('report.downloadQuickVerdict'),
-    '-'.repeat(20),
-    verdict || '',
-    '',
-    report.text,
-  ]
-  if (report.quickTakes?.length) {
-    parts.push('', t('report.downloadExpressOpinions'), '-'.repeat(20))
-    report.quickTakes.forEach(q => {
-      parts.push(`${q.director.name} (${q.director.title}): ${q.text}`, '')
-    })
-  }
-  return parts.join('\n')
-}
-
 export default function ReportModal({ situation, verdict, report, loading, error, onClose }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const displayError = error
 
   const handleDownload = () => {
-    const text = buildDownloadText(t, situation, verdict, report)
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'informe-junta-directiva.txt'
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadExecutiveReportPdf({ situation, verdict, report, language: lang })
   }
 
   return (
