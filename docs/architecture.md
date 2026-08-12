@@ -1,5 +1,8 @@
 # Architecture
 
+The submitted visual architecture diagram is also available as
+[`output/pdf/junta-directiva-architecture.pdf`](../output/pdf/junta-directiva-architecture.pdf).
+
 **Junta Directiva AI** is a Collaborative Partner that keeps working after the
 browser receives its answer: a board session is created immediately, then 12
 specialist agents and a Chairman deliberate asynchronously in Google Cloud.
