@@ -21,6 +21,10 @@ def create_session(
         "turns": [],
         "verdict": None,
         "paused": False,
+        "current_director_id": None,
+        "current_step": 0,
+        "total_steps": len(director_ids) if director_ids is not None else None,
+        "phase": "preparing",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return session_id
@@ -33,11 +37,23 @@ def append_turn(session_id: str, director_id: str, text: str) -> None:
     ref = _db.collection(_COLLECTION).document(session_id)
     ref.update({"turns": firestore.ArrayUnion([{"director_id": director_id, "text": text}])})
 
+def set_progress(session_id: str, director_id: str | None, step: int, total_steps: int, phase: str) -> None:
+    """Publish the background job stage before a full Gemini response arrives."""
+    _db.collection(_COLLECTION).document(session_id).update({
+        "current_director_id": director_id,
+        "current_step": step,
+        "total_steps": total_steps,
+        "phase": phase,
+    })
+
 def set_verdict(session_id: str, verdict: str) -> None:
     _db.collection(_COLLECTION).document(session_id).update({"verdict": verdict})
 
 def set_status(session_id: str, status: str) -> None:
-    _db.collection(_COLLECTION).document(session_id).update({"status": status})
+    updates = {"status": status}
+    if status == "done":
+        updates.update({"current_director_id": None, "phase": "done"})
+    _db.collection(_COLLECTION).document(session_id).update(updates)
 
 def set_paused(session_id: str, paused: bool) -> None:
     _db.collection(_COLLECTION).document(session_id).update({"paused": paused})

@@ -55,7 +55,7 @@ function AppInner() {
   // account de Cloud Run). El hook tampoco expone un `reset`, así que "sesión iniciada"
   // se rastrea localmente: sirve tanto para mostrar la pantalla inicial de nuevo tras
   // "Nueva sesión" como para el estado idle antes del primer convene.
-  const { turns, verdict, status, paused, convene, pause, resume } = useBoard()
+  const { turns, verdict, status, paused, progress, convene, pause, resume } = useBoard()
   const [hasStarted, setHasStarted] = useState(false)
 
   const [sessionError, setSessionError] = useState(null)
@@ -406,7 +406,7 @@ function AppInner() {
               <p style={{ fontSize: '11px', color: 'var(--t3)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '18px', fontWeight: 500 }}>
                 {t('board.conversationLabel')}
               </p>
-              <DebateChat turns={turns} onClickDirector={setSelectedDirector} paused={paused} />
+              <DebateChat turns={turns} onClickDirector={setSelectedDirector} paused={paused} selectedDirectorIds={selectedIds} progress={progress} />
             </div>
 
             {/* Veredicto — la conclusión, al final de la conversación */}

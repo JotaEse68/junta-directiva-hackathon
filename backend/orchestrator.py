@@ -17,7 +17,7 @@ from google.genai import types
 
 from agents.directors import DIRECTORS, build_director_agent
 from agents.chairman import CHAIRMAN_SYSTEM_PROMPT, build_chairman_agent
-from firestore_store import append_turn, set_verdict, set_status, is_paused
+from firestore_store import append_turn, set_verdict, set_status, set_progress, is_paused
 
 _APP_NAME = "junta-directiva"
 
@@ -114,13 +114,15 @@ def run_board_session(
         directors_to_run = [d for d in DIRECTORS if d["id"] in director_ids]
 
     responses = []
-    for director in directors_to_run:
+    total_director_steps = len(directors_to_run)
+    for index, director in enumerate(directors_to_run, start=1):
         # Blocks here, between turns only — checked once right at the start
         # of each iteration (before the agent call starts), never mid-call,
         # so pausing never cuts off content already being generated. Also
         # covers the "paused instantly after creation" case since this is
         # the very first thing that happens for the first director too.
         wait_if_paused(session_id)
+        set_progress(session_id, director["id"], index, total_director_steps, "analyzing")
         agent = build_director_agent(director)
         text = call_agent(agent, director_prompt)
         append_turn(session_id, director["id"], text)
@@ -128,6 +130,7 @@ def run_board_session(
 
     # Same guarantee before the chairman's turn.
     wait_if_paused(session_id)
+    set_progress(session_id, "chairman", total_director_steps, total_director_steps, "synthesizing")
     summary_prompt = "\n\n".join(f"{d['name']}: {t}" for d, t in responses)
     if language == "en":
         summary_prompt = summary_prompt + LANGUAGE_DIRECTIVE
