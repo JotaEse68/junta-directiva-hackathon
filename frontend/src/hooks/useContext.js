@@ -28,6 +28,24 @@ async function extractDOCX(file) {
   return result.value.slice(0, 8000)
 }
 
+// Markdown ya es texto plano: no necesita un parser adicional antes de crear
+// el briefing que recibirán los directores.
+async function extractMD(file) {
+  return (await file.text()).slice(0, 8000)
+}
+
+function isUsefulSummary(summary) {
+  const normalized = (summary || '').trim().toLowerCase()
+  if (normalized.length < 80) return false
+  return ![
+    'no hay proyecto que analizar',
+    'no incluye ningún contenido',
+    'no tengo ningún material',
+    'no tengo suficiente información para analizar',
+    'no content to analyze',
+  ].some(message => normalized.includes(message))
+}
+
 export function useContextBuilder() {
   const [items, setItems]     = useState([]) // { id, type, name, status, summary, error }
   const [processing, setProcessing] = useState(false)
@@ -61,7 +79,7 @@ export function useContextBuilder() {
     return data.summary
   }
 
-  // Procesa un archivo (PDF o Word)
+  // Procesa un archivo (PDF, Word o Markdown)
   //
   // Error reporting: item.error holds either a known error CODE (one of the
   // ERROR_CODES below — ContextPanel.jsx maps these through t('context.error'+code)
@@ -77,7 +95,7 @@ export function useContextBuilder() {
   // invisible in the UI (Task 17 review finding).
   const processFile = useCallback(async (file, language) => {
     const ext = file.name.split('.').pop().toLowerCase()
-    if (!['pdf', 'doc', 'docx'].includes(ext)) {
+    if (!['pdf', 'doc', 'docx', 'md'].includes(ext)) {
       addItem({ type: 'file', name: file.name, status: 'error', error: 'FileType' })
       return { error: 'FileType' }
     }
@@ -93,6 +111,8 @@ export function useContextBuilder() {
       let extracted = ''
       if (ext === 'pdf') {
         extracted = await extractPDF(file)
+      } else if (ext === 'md') {
+        extracted = await extractMD(file)
       } else {
         extracted = await extractDOCX(file)
       }
@@ -106,6 +126,9 @@ export function useContextBuilder() {
 
       // 2. Resumir via servidor
       const summary = await summarizeViaServer('extracted', { content: extracted }, language)
+      if (!isUsefulSummary(summary)) {
+        throw new Error('ExtractFailed')
+      }
       updateItem(id, { status: 'done', summary })
 
     } catch (err) {
@@ -141,6 +164,7 @@ export function useContextBuilder() {
         updateItem(id, { status: 'done', summary: text.trim() })
       } else {
         const summary = await summarizeViaServer('note', { content: text }, language)
+        if (!isUsefulSummary(summary)) throw new Error('ProcessingFile')
         updateItem(id, { status: 'done', summary })
       }
     } catch (err) {
@@ -169,8 +193,21 @@ export function useContextBuilder() {
   const hasContext = items.some(it => it.status === 'done')
   const isProcessing = items.some(it => ['extracting', 'summarizing', 'fetching'].includes(it.status))
 
+  // Permite convocar una junta partiendo solo de un documento, una nota o una
+  // URL. El texto de contexto ya está resumido y conserva el origen de cada
+  // pieza para que el modelo sepa qué está analizando.
+  const buildSituationBrief = useCallback(() => {
+    const done = items.filter(it => it.status === 'done' && it.summary)
+    return done.map(it => {
+      const label = it.type === 'file' ? `Documento de apoyo: ${it.name}`
+        : it.type === 'url' ? `Fuente web: ${it.name}`
+        : 'Nota de apoyo'
+      return `${label}\n${it.summary}`
+    }).join('\n\n')
+  }, [items])
+
   return {
     items, addNote, processFile, processURL, removeItem,
-    buildContextBlock, hasContext, isProcessing,
+    buildContextBlock, buildSituationBrief, hasContext, isProcessing,
   }
 }

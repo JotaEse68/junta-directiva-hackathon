@@ -126,7 +126,7 @@ export default function ContextPanel({ onProcessFile, onProcessURL, onAddNote, i
       {/* Botones de acción */}
       <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
         {/* Subir archivo */}
-        <input ref={fileRef} type="file" accept=".pdf,.doc,.docx" multiple onChange={handleFiles} style={{ display:'none' }} />
+        <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.md,text/markdown" multiple onChange={handleFiles} style={{ display:'none' }} />
         <button
           onClick={() => fileRef.current?.click()}
           disabled={isProcessing}

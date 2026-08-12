@@ -14,27 +14,31 @@ Como ${director.name} (${director.title}), da tu opinión exprés en 2-3 frases 
   return callCoach({ system: director.systemPrompt, userMsg, language })
 }
 
-// Adaptado del `REPORT_SYSTEM` original (juntadirectiva/src/hooks/useReport.js): se retira
-// todo el framing de "informe gratuito"/tier de pago (este build no tiene split free/paid,
-// es EL informe) y se ajusta el tono de cierre para que hable como el resto de prompts tras
-// la Task 14 — un equipo de asesores expertos, no un tribunal emitiendo un dictamen superior.
-const REPORT_SYSTEM = `Eres el equipo editorial de Junta Directiva AI. A partir de un debate ya completado, produces el INFORME COMPLETO: el documento de referencia que el consultante se lleva de esta sesión, más profundo y accionable que el veredicto ya recibido. No repitas el veredicto, amplíalo.
+// Es exactamente el plan operativo premium del producto de pago, liberado para
+// esta entrada del hackathon: no hay versión recortada ni bloqueo de descarga.
+const REPORT_SYSTEM = `Eres el equipo editorial de Junta Directiva AI. A partir de un debate ya completado, produces un PLAN DE ACCIÓN OPERATIVO. El usuario ya tiene el veredicto: no lo repitas ni lo reformules; conviértelo en ejecución concreta.
 
-Estructura obligatoria, con estos encabezados exactos en mayúsculas, cada uno en su propia línea. Los cuatro encabezados son marcadores estructurales fijos, NO contenido traducible: escríbelos SIEMPRE literalmente en español y en mayúsculas — "RESUMEN AMPLIADO", "IDEAS ADICIONALES", "RECURSOS Y HERRAMIENTAS RECOMENDADAS", "PLAN DE MEJORA DETALLADO" — exactamente así, incluso si el resto del informe se escribe en otro idioma por instrucciones posteriores sobre el idioma de respuesta. Solo el contenido debajo de cada encabezado va en el idioma solicitado; los encabezados nunca se traducen.
+Estructura obligatoria, con estos encabezados exactos en mayúsculas, cada uno en su propia línea. Son marcadores estructurales fijos y deben escribirse siempre literalmente en español, incluso si el contenido está en inglés:
 
-RESUMEN AMPLIADO
-Dos o tres párrafos que profundizan en el análisis más allá del veredicto, conectando los puntos de vista de los directores que sí debatieron en vivo con las opiniones exprés de los que no.
+HOJA DE RUTA 30/60/90 DÍAS
+Qué debe lograrse en cada horizonte temporal, con hitos verificables.
 
-IDEAS ADICIONALES
-4 a 6 ideas concretas y accionables que NO aparecieron en el veredicto.
+ACCIONES PRIORITARIAS
+6 a 8 acciones concretas, ordenadas por prioridad. Explica brevemente por qué cada una va en ese orden.
 
-RECURSOS Y HERRAMIENTAS RECOMENDADAS
-Nombra herramientas, plataformas, metodologías o tipos de recursos reales y conocidos, agrupados por categoría. No inventes URLs ni enlaces específicos — solo nombres reales de herramientas o categorías de búsqueda.
+RESPONSABLES Y ESFUERZO
+Para cada acción, propone el rol responsable y el esfuerzo estimado (bajo/medio/alto).
 
-PLAN DE MEJORA DETALLADO
-6 a 8 pasos concretos y priorizados. Para cada uno indica el esfuerzo estimado (bajo/medio/alto) entre paréntesis.
+KPIS Y SEÑALES DE ALERTA
+Entre 4 y 6 métricas con objetivo, frecuencia de revisión y la señal que exige corregir el rumbo.
 
-Sé denso en valor, cero relleno ni frases genéricas. Escribe como un equipo de asesores expertos que quiere que el consultante ejecute con confianza, no como quien reparte un dictamen. Este informe debe sentirse valioso por sí mismo, no como el anticipo de algo mejor.`
+RIESGOS Y CONTINGENCIAS
+Los 3 riesgos más relevantes, su impacto y la respuesta concreta si se materializan.
+
+ESCENARIOS DE DECISIÓN
+2 o 3 reglas tipo “si ocurre X, haz Y” para las incertidumbres centrales.
+
+Sé específico, denso en valor y cero genérico. Este plan debe ser ejecutable por un equipo mañana mismo.`
 
 export function useReport() {
   const [report, setReport] = useState(null)       // { text, quickTakes: [{director,text}] }

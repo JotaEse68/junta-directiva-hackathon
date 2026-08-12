@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { useReport } from './useReport.js'
 
 vi.mock('../lib/aiClient.js', () => ({
-  callCoach: vi.fn().mockResolvedValue('RESUMEN AMPLIADO\ntexto de prueba'),
+  callCoach: vi.fn().mockResolvedValue('HOJA DE RUTA 30/60/90 DÍAS\ntexto de prueba'),
 }))
 
 describe('useReport', () => {
@@ -38,14 +38,14 @@ describe('useReport', () => {
 
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
-    expect(result.current.report.text).toContain('RESUMEN AMPLIADO')
+    expect(result.current.report.text).toContain('HOJA DE RUTA 30/60/90 DÍAS')
     expect(result.current.report.quickTakes).toHaveLength(0)
     // Solo la llamada del informe final: los 12 directores ya participaron en vivo,
     // así que no hay quickTakes que pedir.
     expect(callCoach).toHaveBeenCalledTimes(1)
   })
 
-  it('always sends the four literal Spanish section headers as fixed structural markers, even when language is en', async () => {
+  it('always sends the six premium-plan Spanish headers as fixed structural markers, even when language is en', async () => {
     const { callCoach } = await import('../lib/aiClient.js')
     callCoach.mockClear()
     const { result } = renderHook(() => useReport())
@@ -74,11 +74,13 @@ describe('useReport', () => {
     // for English-locale sessions too (Task 15 review fix).
     expect(callCoach).toHaveBeenCalledTimes(1)
     const { system } = callCoach.mock.calls[0][0]
-    expect(system).toContain('RESUMEN AMPLIADO')
-    expect(system).toContain('IDEAS ADICIONALES')
-    expect(system).toContain('RECURSOS Y HERRAMIENTAS RECOMENDADAS')
-    expect(system).toContain('PLAN DE MEJORA DETALLADO')
-    expect(system).toMatch(/SIEMPRE literalmente en español/)
+    expect(system).toContain('HOJA DE RUTA 30/60/90 DÍAS')
+    expect(system).toContain('ACCIONES PRIORITARIAS')
+    expect(system).toContain('RESPONSABLES Y ESFUERZO')
+    expect(system).toContain('KPIS Y SEÑALES DE ALERTA')
+    expect(system).toContain('RIESGOS Y CONTINGENCIAS')
+    expect(system).toContain('ESCENARIOS DE DECISIÓN')
+    expect(system).toMatch(/siempre literalmente en español/i)
   })
 
   it('requests a quickTake for any director missing from turns', async () => {

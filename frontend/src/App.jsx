@@ -43,6 +43,7 @@ export default function App() {
 function AppInner() {
   const { lang, setLang, t } = useI18n()
   const [situation, setSituation]   = useState('')
+  const [submittedSituation, setSubmittedSituation] = useState('')
   const [meetingType, setMeetingType] = useState('decision')
   const [selectedIds, setSelectedIds] = useState(() => selectDirectorsForMeeting('decision', DIRECTORS).map(d => d.id))
   const [selectedDirector, setSelectedDirector] = useState(null)
@@ -74,7 +75,7 @@ function AppInner() {
   const {
     items: ctxItems, addNote: addCtxNote, processFile: processCtxFile,
     processURL: processCtxURL, removeItem: removeCtxItem,
-    buildContextBlock, hasContext, isProcessing: ctxProcessing,
+    buildContextBlock, buildSituationBrief, hasContext, isProcessing: ctxProcessing,
   } = useContextBuilder()
 
   // computeConsensus (lib/consensus.js) espera un mapa { [directorId]: { status, text } };
@@ -105,7 +106,10 @@ function AppInner() {
   const totalCount = selectedIds.length
 
   const handleConvene = useCallback(async () => {
-    if (!situation.trim() || !isIdle || selectedIds.length === 0 || ctxProcessing) return
+    const writtenSituation = situation.trim()
+    const contextOnlySituation = buildSituationBrief()
+    const baseSituation = writtenSituation || contextOnlySituation
+    if (!baseSituation || !isIdle || selectedIds.length === 0 || ctxProcessing) return
     setSessionError(null)
     setHasStarted(true)
     const directors = orderForDebate(selectedIds, DIRECTORS)
@@ -114,33 +118,35 @@ function AppInner() {
     // string de situación, sin cambios en su pipeline. Se añade después del
     // texto del usuario (no antes) para que la situación tal cual la escribió
     // siga siendo lo primero que lee el modelo, con el contexto como anexo.
-    const fullSituation = hasContext
-      ? `${situation.trim()}\n\n${buildContextBlock()}`
-      : situation.trim()
+    const fullSituation = writtenSituation && hasContext
+      ? `${writtenSituation}\n\n${buildContextBlock()}`
+      : baseSituation
     try {
       await convene(fullSituation, meetingType, lang, directors.map(d => d.id))
+      setSubmittedSituation(fullSituation)
     } catch (err) {
       // Reset to the initial form instead of leaving the UI stuck on
       // "starting" with nothing happening.
       setSessionError(err.message || 'unknown')
       setHasStarted(false)
     }
-  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, ctxProcessing])
+  }, [situation, meetingType, selectedIds, isIdle, convene, lang, hasContext, buildContextBlock, buildSituationBrief, ctxProcessing])
 
   const handleReset = () => {
     setHasStarted(false)
     setSituation('')
+    setSubmittedSituation('')
     setReportOpen(false)
   }
 
   const handleGenerateReport = useCallback(async () => {
     setReportOpen(true)
-    await generateReport({ situation, meetingType, turns, verdict, language: lang })
-  }, [situation, meetingType, turns, verdict, lang, generateReport])
+    await generateReport({ situation: submittedSituation || situation, meetingType, turns, verdict, language: lang })
+  }, [submittedSituation, situation, meetingType, turns, verdict, lang, generateReport])
 
   const handleSendChairman = useCallback((text) => {
-    sendChairmanMessage(text, { situation, turns, verdict, language: lang })
-  }, [situation, turns, verdict, lang, sendChairmanMessage])
+    sendChairmanMessage(text, { situation: submittedSituation || situation, turns, verdict, language: lang })
+  }, [submittedSituation, situation, turns, verdict, lang, sendChairmanMessage])
 
   // Extrae el voto de un director del texto generado
   const getDirectorVote = (dirId) => {
@@ -366,8 +372,8 @@ function AppInner() {
 
               <button
                 onClick={handleConvene}
-                disabled={!situation.trim() || selectedIds.length === 0 || ctxProcessing}
-                style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: (situation.trim() && selectedIds.length > 0) ? 'var(--blue)' : 'var(--bg3)', color: (situation.trim() && selectedIds.length > 0) ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: (situation.trim() && selectedIds.length > 0) ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
+                disabled={(!situation.trim() && !hasContext) || selectedIds.length === 0 || ctxProcessing}
+                style={{ padding: '17px', borderRadius: 'var(--r-md)', border: 'none', background: ((situation.trim() || hasContext) && selectedIds.length > 0) ? 'var(--blue)' : 'var(--bg3)', color: ((situation.trim() || hasContext) && selectedIds.length > 0) ? 'var(--bg0)' : 'var(--t3)', fontSize: '15px', fontWeight: 700, cursor: ((situation.trim() || hasContext) && selectedIds.length > 0) ? 'pointer' : 'not-allowed', transition: 'all .2s', letterSpacing: '.02em' }}
               >
                 {selectedIds.length === 0 ? t('form.chooseAtLeastOne') : `🏛️ ${t('action.convene')}`}
               </button>
@@ -457,7 +463,7 @@ function AppInner() {
 
       {reportOpen && (
         <ReportModal
-          situation={situation}
+          situation={submittedSituation || situation}
           verdict={verdict}
           report={report}
           loading={reportLoading}

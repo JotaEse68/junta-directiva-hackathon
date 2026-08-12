@@ -8,6 +8,19 @@ import { useContextBuilder } from './useContext.js'
 // known error CODES that ContextPanel.jsx maps through t() — not a
 // hardcoded Spanish string.
 describe('useContextBuilder validation failures', () => {
+  it('accepts a short text note as context and builds a usable board brief', async () => {
+    const { result } = renderHook(() => useContextBuilder())
+    const note = 'Presupuesto máximo de 20.000 €, lanzamiento previsto en octubre y objetivo de validar demanda antes de contratar.'
+
+    await act(async () => {
+      await result.current.addNote(note, 'es')
+    })
+
+    expect(result.current.items[0]).toMatchObject({ type: 'note', status: 'done', summary: note })
+    expect(result.current.buildSituationBrief()).toContain(note)
+    expect(result.current.buildContextBlock()).toContain('CONTEXTO ADICIONAL PARA EL ANÁLISIS')
+  })
+
   it('processFile rejects an unsupported extension with a visible error item', async () => {
     const { result } = renderHook(() => useContextBuilder())
     const file = new File(['hello'], 'notes.txt', { type: 'text/plain' })

@@ -14,8 +14,8 @@ You describe a business situation and pick a meeting type; 12 specialized direct
 
 - **12 director personas + a Chairman** debate a business situation and converge on concrete options and a recommendation — not a cold up/down verdict.
 - **Director selection** — convene the full board or just the directors relevant to your situation.
-- **Full report generation** and a **follow-up chat with the Chairman** after the debate closes, via a lightweight `/coach` endpoint.
-- **Additional context panel** — attach a PDF, Word doc, URL, or free-text notes; the backend summarizes it via `/context` before the debate starts.
+- **Full operational report** — the former premium plan is free in this hackathon build: 30/60/90 roadmap, prioritized actions, owners and effort, KPIs, contingencies, and decision scenarios. It also includes a follow-up chat with the Chairman via `/coach`.
+- **Additional context panel** — attach a PDF, Word doc, Markdown file, URL, or free-text notes; the backend summarizes it via `/context` before the debate starts. A prepared context source can also be used as the situation by itself.
 - **Pause / resume** an in-progress debate — nothing already generated is lost, the orchestrator polls a Firestore flag between turns.
 - **Live "thinking" indicator** for whichever director is currently being generated.
 - **Free judging access**: all features are available without payment, API keys, sign-up, or a usage cap, so judges can test the complete experience.
