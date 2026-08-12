@@ -8,7 +8,7 @@
 // that instead of reimplementing SSE parsing for what is now a single blocking
 // HTTP call.
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://junta-backend-923278368829.us-central1.run.app'
 
 // Generic completion call to POST /coach (backend/main.py), which backs both the
 // full report (useReport.js) and the chairman follow-up chat (useChairmanChat.js).

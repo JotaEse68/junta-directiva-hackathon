@@ -1,12 +1,16 @@
 import { useState, useCallback } from 'react'
+import * as pdfjsLib from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import mammoth from 'mammoth/mammoth.browser'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://junta-backend-923278368829.us-central1.run.app'
 
-// Extrae texto de PDF usando pdf.js desde CDN
+// Se empaquetan con la app, no se cargan desde un CDN: así la lectura de
+// archivos no depende de que una respuesta remota sea JavaScript válido.
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+
+// Extrae texto de PDF usando pdf.js local
 async function extractPDF(file) {
-  const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs'
-
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
   let fullText = ''
@@ -20,9 +24,8 @@ async function extractPDF(file) {
   return fullText.slice(0, 8000)
 }
 
-// Extrae texto de Word (.docx) usando mammoth desde CDN
+// Extrae texto de Word (.docx) usando mammoth local
 async function extractDOCX(file) {
-  const mammoth = (await import('https://cdn.jsdelivr.net/npm/mammoth@1.7.0/mammoth.browser.esm.js')).default
   const arrayBuffer = await file.arrayBuffer()
   const result = await mammoth.extractRawText({ arrayBuffer })
   return result.value.slice(0, 8000)
@@ -74,7 +77,15 @@ export function useContextBuilder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    const data = await res.json()
+    const raw = await res.text()
+    let data
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      // Por ejemplo, Firebase puede devolver index.html ante una URL mal
+      // configurada. Nunca mostramos ese error técnico al usuario.
+      throw new Error('ProcessingFile')
+    }
     if (!res.ok) throw new Error(data.error || data.detail || `Error ${res.status}`)
     return data.summary
   }
@@ -132,7 +143,7 @@ export function useContextBuilder() {
       updateItem(id, { status: 'done', summary })
 
     } catch (err) {
-      updateItem(id, { status: 'error', error: err.message || 'ProcessingFile' })
+      updateItem(id, { status: 'error', error: ['FileType', 'FileSize', 'ExtractFailed', 'ProcessingFile'].includes(err.message) ? err.message : 'ProcessingFile' })
     }
   }, [addItem, updateItem])
 
@@ -150,7 +161,7 @@ export function useContextBuilder() {
       const summary = await summarizeViaServer('url', { url }, language)
       updateItem(id, { status: 'done', summary })
     } catch (err) {
-      updateItem(id, { status: 'error', error: err.message || 'UrlFailed' })
+      updateItem(id, { status: 'error', error: ['InvalidUrl', 'UrlFailed'].includes(err.message) ? err.message : 'UrlFailed' })
     }
   }, [addItem, updateItem])
 
@@ -168,7 +179,7 @@ export function useContextBuilder() {
         updateItem(id, { status: 'done', summary })
       }
     } catch (err) {
-      updateItem(id, { status: 'error', error: err.message })
+      updateItem(id, { status: 'error', error: 'ProcessingFile' })
     }
   }, [addItem, updateItem])
 

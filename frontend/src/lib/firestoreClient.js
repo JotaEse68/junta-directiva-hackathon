@@ -8,7 +8,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://junta-backend-923278368829.us-central1.run.app'
 
 export async function createSession(situation, meetingType, language, directorIds) {
   const body = { situation, meeting_type: meetingType, language }
