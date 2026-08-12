@@ -1,25 +1,27 @@
 # Junta Directiva AI
 
-12 AI board-of-directors agents debate your situation with each other and issue an executive verdict with next steps — built for the **All Things Agentic Hackathon**, Collaborative Partner track.
+12 AI board-of-directors agents challenge a business decision, connect their findings, and issue an executive verdict with practical next steps — built for the **All Things Agentic Hackathon**, Collaborative Partner track.
 
-You describe a business situation and pick a meeting type; 12 specialized director agents (Strategy, Finance, Marketing, Operations, Legal, Technology, Sales, Product, People, Data, Chairman/Mentor, and a "Chief Reality Officer" that says the uncomfortable part out loud) each weigh in, and a Chairman agent closes the debate with consensus points, the main disagreement, a final verdict, and prioritized next steps.
+You describe a business situation (up to 2,000 characters), choose a meeting type, optionally add source material, and select the directors you need. The 12 specialist personas cover Strategy, Finance, Marketing, Operations, Legal, Technology, Sales, Product, People, Data, Chairman/Mentor, and a Chief Reality Officer who says the uncomfortable part out loud. A Chairman agent closes the board session with consensus points, the main disagreement, a final verdict, and prioritized next steps.
 
 **Live demo:** https://junta-directiva-hackathon.web.app · **API:** https://junta-backend-923278368829.us-central1.run.app
 
 ## Why this counts as "beyond the standard chat loop"
 
-`POST /sessions` returns a `session_id` immediately. The 12-director-plus-chairman debate then runs as a FastAPI `BackgroundTasks` job on the server, independent of whether the browser tab stays open, writing each turn to Firestore as it completes. For this board-convening/debate flow — the flow that satisfies the hackathon's async/GCP requirements — the frontend never calls Gemini directly: it only subscribes to the Firestore session document (`onSnapshot`) and renders turns and the verdict as they land. See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram.
+`POST /sessions` returns a `session_id` immediately. The board then runs as a FastAPI `BackgroundTasks` job on the server, independent of whether the browser tab stays open, writing each result to Firestore. Directors work in bounded parallel batches, followed by a focused contrast round and Chairman synthesis. For this board-convening flow — the flow that satisfies the hackathon's async/GCP requirements — the frontend never calls Gemini directly: it only subscribes to the Firestore session document (`onSnapshot`) and renders live activity, findings, and the verdict as they land. See [`docs/architecture.md`](docs/architecture.md) for the full sequence diagram.
 
 ## Features
 
-- **12 director personas + a Chairman** debate a business situation and converge on concrete options and a recommendation — not a cold up/down verdict.
+- **12 director personas + a Chairman** challenge a business situation and converge on concrete options and a recommendation — not a cold up/down verdict.
 - **Director selection** — convene the full board or just the directors relevant to your situation.
-- **Full operational report** — the former premium plan is free in this hackathon build: 30/60/90 roadmap, prioritized actions, owners and effort, KPIs, contingencies, and decision scenarios. It also includes a follow-up chat with the Chairman via `/coach`.
+- **Live parallel deliberation** — director status is visible while analyses arrive in parallel; the board then cross-checks its first findings before the Chairman synthesizes them.
+- **Full operational report, free** — the former premium plan is included in the hackathon build: a 30/60/90 roadmap, prioritized actions, owners and effort, KPIs, contingencies, and decision scenarios, downloadable as a polished executive PDF.
 - **Additional context panel** — attach a PDF, Word doc, Markdown file, URL, or free-text notes; the backend summarizes it via `/context` before the debate starts. A prepared context source can also be used as the situation by itself.
+- **Chairman working session** — after the verdict, users can rebut, explore alternatives, reconduct the decision, or add an image, PDF, Markdown, or text file. Each refined response can be saved as a styled PDF.
 - **Pause / resume** an in-progress debate — nothing already generated is lost, the orchestrator polls a Firestore flag between turns.
-- **Live "thinking" indicator** for whichever director is currently being generated.
+- **Decision-ready intake** — up to 2,000 characters for the initial brief, plus source-based context, so a real decision does not need to fit into a chat-sized prompt.
 - **Free judging access**: all features are available without payment, API keys, sign-up, or a usage cap, so judges can test the complete experience.
-- **Bilingual (ES/EN)** throughout, including per-director bios and meeting-type copy.
+- **Bilingual (ES/EN)** throughout, including per-director bios, meeting copy, product messaging, and legal/responsible-use notice.
 
 ## Stack
 
@@ -33,7 +35,7 @@ You describe a business situation and pick a meeting type; 12 specialized direct
 The underlying product ("Junta Directiva AI", [juntadirectiva.vercel.app](https://juntadirectiva.vercel.app)) supports multiple AI providers (Claude/OpenAI/Gemini) with client-side, provider-agnostic API keys. This hackathon entry intentionally narrows the stack to comply with contest rules while restoring full feature parity:
 
 - **Gemini-only**, called server-side via Vertex AI — no provider picker, BYOK path, or API-key UI.
-- Every other product feature (director selection, full report, chairman chat, additional context, pause/resume) has been ported to this async, ADK-orchestrated architecture rather than dropped.
+- Every other product feature (director selection, full PDF report, attachment-aware Chairman chat, additional context, pause/resume, and live board activity) has been ported to this async, ADK-orchestrated architecture rather than dropped.
 
 ## Status of this repo
 

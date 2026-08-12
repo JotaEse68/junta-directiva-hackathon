@@ -4,9 +4,10 @@ The submitted visual architecture diagram is also available as
 [`output/pdf/junta-directiva-architecture.pdf`](../output/pdf/junta-directiva-architecture.pdf).
 
 **Junta Directiva AI** is a Collaborative Partner that keeps working after the
-browser receives its answer: a board session is created immediately, then 12
-specialist agents and a Chairman deliberate asynchronously in Google Cloud.
-The user watches each completed contribution appear in real time.
+browser receives its answer: a board session is created immediately, then the
+selected specialist agents work asynchronously in bounded parallel batches in
+Google Cloud. The user watches live activity and completed contributions appear
+in real time.
 
 ## Sequence
 
@@ -24,13 +25,15 @@ sequenceDiagram
     BE->>FS: Create session document
     BE-->>FE: session_id immediately
     Note over BE,ADK: Background job continues independently of the browser
-    loop Selected directors, in debate order
+    loop Selected directors, parallel batches of up to 3
         BE->>ADK: Run director agent
         ADK->>G: Generate analysis
         G-->>ADK: Response
         ADK-->>BE: Director contribution
         BE->>FS: Append completed turn
     end
+    BE->>ADK: Run focused contrast round
+    ADK-->>BE: Cross-check findings
     BE->>ADK: Run Chairman synthesis
     ADK->>G: Generate verdict
     BE->>FS: Save verdict and mark done
@@ -49,9 +52,9 @@ sequenceDiagram
 - **Google ADK + Vertex AI** — 12 director agents, the Chairman, document
   summaries, full reports, and follow-up questions all use `gemini-3.5-flash`
   through Vertex AI.
-- **Firestore** — persists sessions, completed turns, verdicts, and pause state.
-  The live subscription keeps the interface updated while work happens in the
-  background.
+- **Firestore** — persists sessions, director activity states, completed turns,
+  verdicts, and pause state. The live subscription keeps the interface updated
+  while work happens in the background.
 
 ## Hackathon compliance
 
@@ -60,5 +63,5 @@ sequenceDiagram
 | Gemini 3.5+ | `gemini-3.5-flash` via Vertex AI |
 | Google agent framework | Google ADK agents + `InMemoryRunner` |
 | Google Cloud services | Cloud Run, Firestore, Firebase Hosting |
-| Beyond a chat loop | `POST /sessions` returns first; the board continues server-side and persists progress |
-| Collaborative Partner | Clarifying context, guided decision flow, director selection, a follow-up Chairman conversation, and a full report |
+| Beyond a chat loop | `POST /sessions` returns first; parallel board work continues server-side and persists live progress |
+| Collaborative Partner | Clarifying context, guided decision flow, director selection, a follow-up Chairman conversation with attachments, and a full PDF report |

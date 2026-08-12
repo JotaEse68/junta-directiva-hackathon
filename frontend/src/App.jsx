@@ -15,7 +15,7 @@ import { DIRECTORS, MEETING_TYPES, selectDirectorsForMeeting, orderForDebate } f
 import { computeConsensus } from './lib/consensus.js'
 import { I18nProvider, useI18n, DIRECTOR_I18N, MEETING_DESC_I18N } from './lib/i18n.js'
 
-const MAX_CHARS = 800
+const MAX_CHARS = 2000
 
 // Mapea el id de tipo de reunión (en español, usado internamente en lib/directors.js)
 // a la clave de traducción i18n correspondiente para su etiqueta.
@@ -301,6 +301,8 @@ function AppInner() {
                   value={situation}
                   onChange={e => setSituation(e.target.value.slice(0, MAX_CHARS))}
                   placeholder={t('form.situationPlaceholder')}
+                  maxLength={MAX_CHARS}
+                  aria-describedby="board-situation-hint board-situation-count"
                   rows={5}
                   style={{ width: '100%', padding: '16px', background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 'var(--r-md)', color: 'var(--t1)', fontSize: '15px', lineHeight: 1.7, resize: 'vertical', outline: 'none', transition: 'border-color .2s', minHeight: '130px' }}
                   onFocus={e => e.target.style.borderColor = 'var(--blue-bd)'}
@@ -308,8 +310,8 @@ function AppInner() {
                   onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleConvene() }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{t('form.cmdEnterHint')}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--t3)' }}>{situation.length}/{MAX_CHARS}</span>
+                  <span id="board-situation-hint" style={{ fontSize: '11px', color: 'var(--t3)' }}>{t('form.cmdEnterHint')}</span>
+                  <span id="board-situation-count" style={{ fontSize: '11px', color: 'var(--t3)' }}>{situation.length}/{MAX_CHARS}</span>
                 </div>
                 <div className="situation-examples" aria-label={t('form.examplesLabel')}>
                   <span>{t('form.examplesLabel')}</span>
