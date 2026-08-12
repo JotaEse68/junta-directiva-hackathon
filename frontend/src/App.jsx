@@ -233,6 +233,10 @@ function AppInner() {
                   <span>02</span>
                   <div><strong>{t('overview.stepTwo')}</strong><p>{t('overview.stepTwoDesc')}</p></div>
                 </li>
+                <li>
+                  <span>03</span>
+                  <div><strong>{t('overview.stepThree')}</strong><p>{t('overview.stepThreeDesc')}</p></div>
+                </li>
               </ol>
             </section>
 
@@ -425,6 +429,15 @@ function AppInner() {
                   onGenerate={handleGenerateReport}
                 />
               </div>
+            )}
+
+            {isDone && (
+              <section style={{ marginBottom: '16px', padding: '18px 20px', border: '1px solid var(--blue-bd)', borderRadius: 'var(--r-md)', background: 'linear-gradient(135deg, var(--blue-dim), rgba(35,190,174,.08))' }} aria-labelledby="chairman-feature-title">
+                <p style={{ fontSize: '10px', color: 'var(--blue)', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '5px' }}>{t('chairman.featureKicker')}</p>
+                <h3 id="chairman-feature-title" style={{ fontSize: '17px', color: 'var(--t1)', marginBottom: '6px' }}>{t('chairman.featureTitle')}</h3>
+                <p style={{ fontSize: '13px', color: 'var(--t2)', lineHeight: 1.55, marginBottom: '8px' }}>{t('chairman.featureDesc')}</p>
+                <p style={{ fontSize: '11px', color: 'var(--blue)', lineHeight: 1.6 }}>{t('chairman.featurePoints')}</p>
+              </section>
             )}
 
             {isDone && (
