@@ -92,6 +92,7 @@ def call_agent(agent, prompt: str) -> str:
 
 LANGUAGE_DIRECTIVE = "\n\nIMPORTANT: Write your entire response in English, regardless of the language of the instructions above."
 _CROSS_EXAMINATION_LIMIT = 3
+_PARALLEL_WORKERS = 3
 
 
 def run_initial_analysis(session_id: str, director: dict, prompt: str) -> tuple[dict, str]:
@@ -133,7 +134,11 @@ def run_board_session(
     for director in directors_to_run:
         set_director_progress(session_id, director["id"], "waiting")
     wait_if_paused(session_id)
-    with ThreadPoolExecutor(max_workers=max(1, total_director_steps)) as executor:
+    # Gemini/Vertex requests are concurrent in deliberately small waves. A
+    # burst of 12 long ADK runners can exhaust a single Cloud Run instance and
+    # leave every response waiting; three gives prompt first results while
+    # keeping the background worker healthy.
+    with ThreadPoolExecutor(max_workers=min(_PARALLEL_WORKERS, max(1, total_director_steps))) as executor:
         futures = [executor.submit(run_initial_analysis, session_id, director, director_prompt) for director in directors_to_run]
         for future in as_completed(futures):
             director, text = future.result()

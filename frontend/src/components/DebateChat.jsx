@@ -70,7 +70,7 @@ export default function DebateChat({ turns, onClickDirector, paused, selectedDir
         </div>
         <div role="list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: '8px' }}>
           {participants.map(director => {
-            const state = states[director.id] || (completed ? 'waiting' : 'analyzing')
+            const state = states[director.id] || 'waiting'
             const busy = ['analyzing', 'contrasting'].includes(state) && !paused
             const ready = state === 'ready'
             return (

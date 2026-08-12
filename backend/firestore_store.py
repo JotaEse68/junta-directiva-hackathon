@@ -13,6 +13,7 @@ def create_session(
     director_ids: list[str] | None = None,
 ) -> str:
     session_id = str(uuid.uuid4())
+    initial_directors = director_ids or []
     _db.collection(_COLLECTION).document(session_id).set({
         "situation": situation,
         "meeting_type": meeting_type,
@@ -25,8 +26,11 @@ def create_session(
         "current_director_id": None,
         "current_step": 0,
         "total_steps": len(director_ids) if director_ids is not None else None,
-        "phase": "preparing",
-        "director_progress": {},
+        # These are written synchronously with the session, before the HTTP
+        # response. The UI is never left on an empty "Preparing" screen while
+        # the worker starts up.
+        "phase": "parallel_analysis",
+        "director_progress": {director_id: "waiting" for director_id in initial_directors},
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return session_id
